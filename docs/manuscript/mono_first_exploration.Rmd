@@ -1,0 +1,181 @@
+---
+title: 'Analysis of the effects of Early Life Adversity on monoamines'
+output: word_document
+---
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE)
+source("config/utilities.R")
+source("src/general_funs.R")
+library(knitr) # for tables
+# library(metaforest) # for exploratory analysis
+# library(caret) # for exploratory analysis
+options(scipen=1, digits=3)
+```
+
+# Results
+
+```{r load data, include=FALSE}
+dat <- readRDS(paste0(final, "data_for_analysis.RDS"))
+
+# categorization outcomes
+monoamines <- c("NE", "5HT", "DA")
+metabolites <- c("5HIAA/5HT", "VMA", "VMA/NE", "MHPG", "DOPAC", "DOPAC/DA", "HVA",
+                 "5HIAA", "3MT", "HVA/DA", "DOPAC_HVA/DA")
+enzymes <- c("TH", "COMT", "TPH", "TPH2", "MAO_A")
+recept <- c("5HT_2AR", "5HT_2CR", "D1R", "D2R", "DAT", "5HT_1AR", "SERT", "D3R", 
+            "5HT_6R")
+
+da_related <- c("DA", "DOPAC", "DOPAC/DA", "HVA", "HVA/DA", "DOPAC_HVA/DA", "3MT",
+                "D1R", "D2R", "D3R", "DAT")
+ser_related <- c("5HT", "5HIAA", "5HIAA/5HT",
+                 "5HT_2AR", "5HT_2CR", "5HT_1AR", "SERT", "5HT_6R")
+ne_related <- c("NE", "VMA", "VMA/NE", "MHPG")
+
+
+## check all outcomes present: must be true
+length(c(monoamines, metabolites, enzymes, recept)) == n_distinct(dat$outcome)
+
+id_both_sex <- dat %>% 
+  group_by(id, sex) %>% 
+  count() %>%
+  pivot_wider(names_from = "sex", values_from = "n") %>% 
+  na.omit()
+
+# for freq females
+freq_fem <- dat %>% 
+  filter(sex == "female") %>%
+  group_by(out_grouped) %>% 
+  summarize(
+    across(ends_with("id"), function(x) round(length(unique(x)),2)), 
+    .groups = "drop"
+  )
+
+
+```
+
+## Study selection and characteristics
+An overview of the study design is summarized in the flow chart (Fig. 1 - *still to do*). Our pre-specified inclusion criteria (**Methods**) were met by `r n_distinct(dat$id)` publications, published between `r str_remove_all(dat$cite, ".*\\(") %>% str_remove_all("\\)") %>% as.numeric() %>% min()` and `r str_remove_all(dat$cite, ".*\\(") %>% str_remove_all("\\)") %>% as.numeric() %>% max()`. The included publications contributed `r n_distinct(dat$exp_id)` unique experiments for a total of `r nrow(dat)` comparisons, from which we extracted statistical measurements (e.g. mean or median, standard error (SEM), deviation (SD) or interquantile range (IQR), and sample size (N)). X publications (ref) and X other comparisons were excluded from the analysis as it was not possible to obtain any statistical measurement.
+
+The included publications used mainly rats (n~publ~ = `r length(unique(dat[dat$species == "rat",]$id))/length(unique(dat$id))*100`%) and the maternal separation ELA model (n~publ~ = `r length(unique(dat[dat$model == "maternal_separation",]$id))/length(unique(dat$id))*100`%), followed by material deprivation and isolation (n~publ~ = `r length(unique(dat[dat$model %in% c("maternal_deprivation", "isolation"),]$id))/length(unique(dat$id))*100`%) and lastly limited nesting and bedding (n~publ~ = `r length(unique(dat[dat$model == "limited_nesting",]$id))/length(unique(dat$id))*100`%). 
+
+A total of ~`r round(sum(c(dat$n_e, dat$n_c)))` animals were used, `r sum(c(dat[dat$sex == "male",]$n_e, dat[dat$sex == "male",]$n_c)) / sum(c(dat$n_e, dat$n_c)) * 100`% of which were males. `r n_distinct(id_both_sex$id)` publications performed experiments in both male and female rodents. Similarly to previous studies, we aimed to analyze males and females separately, as two different biological systems, since sex-dismorphic characteristics have been frequently observed in stress research. 
+
+```{r outliers, include=FALSE}
+all_out <- unique(dat$outcome)
+res <- data.frame()
+row <- 1
+
+for (o in all_out) {
+  
+  dat_ft <- dat[dat$outcome == o,]
+  
+  if(nrow(dat_ft) > 1) {
+    
+    # model
+  mod_out <- rma(yi, vi, method = "REML",
+         data = dat_ft, slab = cite)
+  
+  # influence analysis
+  inf <- influence(mod_out)
+  
+  inf_cases <- dat_ft$unique_id[which(inf$inf$inf == "*")]
+  
+  res <- res %>% bind_rows(
+    data.frame(
+      outcome = rep(o, length(inf_cases)), 
+      index = inf_cases
+    )
+  )
+  
+  row <- row + 1
+  
+  }
+  
+}
+
+inf_df <- dat %>% filter(unique_id %in% res$index)
+
+dat <- dat %>% 
+  mutate(
+    outlier = ifelse(
+      abs(scale(dat$yi)) > 3.29, "possible", "no"
+    )
+  )
+
+
+```
+
+`r dat %>% filter(outlier == "possible") %>% nrow()` comparisons were excluded from the analysis because >3.29 SD away from the mean and they were also identified as influential cases. Since `r dat %>% filter(outlier == "possible", cite == "Zhang(2015)") %>% nrow()` of these comparisons belonged to the same publication, which was then excluded from the analysis (n~additional comp~ = 1). Although no factor of the experimental design particularly stood out, in this publication the animals experienced several life events that might be considered traumatic (dams transported pregnant, chronic stress during adolescence/young adulthood, testing in stressful behavioral experiments). We therefore reasoned that the population studied in this publication was not comparable with the others.
+
+
+```{r outliers removal}
+dat <- dat %>% 
+  filter(
+    cite != "Zhang(2015)", 
+    outlier == "no"
+  )
+```
+
+## Visualizations of the data
+### Population
+
+```{r population, fig.height=10, fig.width=10}
+pop_vars <- c("species", "sex", "age_testing_weeks", "model")
+
+g_pop <- list()
+for (i in pop_vars){
+  g_pop[[i]] <- dat %>% 
+    mutate(i = str_to_sentence(i)) %>%
+    ggplot(aes_string(i, fill = "id")) + 
+    geom_histogram(stat="count", color = "black") + 
+    labs(
+      y = expression("N"["comparisons"]), 
+      x = ifelse(i == "age_testing_weeks", "Weeks", ""), 
+      title = str_to_sentence(i)
+      ) + 
+    my_theme + 
+    theme(legend.position = "null", 
+          axis.text.x = element_text(angle = 45, hjust = 1)) + 
+    scale_fill_manual(values = rep("white", n_distinct(dat$id)))
+}
+
+ggpubr::ggarrange(
+  g_pop[[1]], g_pop[[2]], 
+  g_pop[[3]], g_pop[[4]], 
+  ncol = 2, nrow = 2
+)
+
+```
+
+### Other life experiences
+```{r other life exp, fig.height=6, fig.width=8}
+
+stress_vars <- c("origin", "housing_after_weaning", "behavior", 
+                 "major_life_events", "trauma_presence")
+
+dat %>% 
+  select(exp_id, all_of(stress_vars)) %>% 
+  mutate(
+    origin = ifelse(origin == "purchased_pregnant_dams", "stress", "no"),
+    housing_after_weaning = ifelse(housing_after_weaning == "single", "stress", "no"),
+    behavior = ifelse(behavior == "stressful", "stress", ifelse(behavior == "non_stressful", "non_stress", "no")),
+    major_life_events = ifelse(major_life_events=="yes", "stress", "no"), 
+    trauma_presence = ifelse(trauma_presence == "yes", "stress", "no")
+  ) %>% 
+  pivot_longer(cols = all_of(stress_vars)) %>% 
+  
+  ggplot(aes(name, exp_id, fill = value)) + 
+  labs(
+    x = "",
+    y = "Experiments"
+  ) + 
+  geom_tile() + 
+  scale_fill_manual(values = c("white", "grey", "black")) + 
+  my_theme +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1),
+        axis.text.y = element_text(size = 6))
+
+```
+
+The experimental design of only other `r dat %>% filter(trauma_score == 0) %>% pull(exp_id) %>% unique() %>% length()` experiments (`r dat %>% filter(trauma_score == 0) %>% pull(exp_id) %>% unique() %>% length() / length(unique(dat$exp_id)) * 100`%) did not use elements that may be considered additional traumas. Of these, `r dat %>% filter(behavior == "naive", major_life_events == "no", at_death == "rest") %>% pull(exp_id) %>% unique() %>% length()` experiments measured monoamines outcomes in naive animals.
+
