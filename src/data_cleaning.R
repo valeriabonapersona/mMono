@@ -117,6 +117,7 @@ mono <- dat_xl$out_monoamines %>%
       str_replace_all("serotonin", "5HT") %>% 
       str_replace_all("_5HT", "/5HT") %>% 
       str_replace_all("_R", "R"), 
+    outcome = ifelse(outcome %in% c("D1R", "D3R"), "D1Rlike", outcome),
     product_measured = tolower(product_measured) %>%
       str_replace_all("mrna", "rna") %>% 
       str_replace_all("signal_", "") %>% 
@@ -157,42 +158,48 @@ mono <- dat_xl$out_monoamines %>%
     ),
     
     outcome = ifelse(outcome=="DR2", "D2R", outcome),
+    outcome = str_replace_all(outcome, "5HIIA", "5HIAA"),
       
     out_grouped = case_when(
-      str_detect(outcome, "D1R|D2R|D3R|D5R") ~ "da_receptors",
-      str_detect(outcome, "DOPAC|HVA|3MT") ~ "da_metabolites",
-      str_detect(outcome, "/5HT|5HIAA") ~ "ser_metabolites",
-      str_detect(outcome, "VMA") ~ "ne_precursors",
-      str_detect(outcome, "MHPG") ~ "ne_metabolites",
-      str_detect(outcome, "TPH") ~ "ser_precursors",
-      str_detect(outcome, "5HT_") ~ "ser_receptors",
-
+      outcome %in% c("NE", "5HT", "DA") ~ "monoamines",
+      outcome %in% c("5HIAA/5HT", "VMA", "VMA/NE", "MHPG", "DOPAC", "DOPAC/DA", "HVA",
+                     "5HIAA", "3MT", "HVA/DA", "DOPAC_HVA/DA") ~ "metabolites_and_precursors", 
+      outcome %in% c("TH", "COMT", "TPH", "TPH2", "MAO_A") ~ "enzymes", 
+      outcome %in% c("5HT_2AR", "5HT_2CR", "D1R", "D2R", "DAT", "5HT_1AR", "SERT", "D3R", 
+                     "5HT_6R") ~ "receptors_and_transporters", 
       T ~ outcome
+    ),
+    
+    out_mono = case_when(
+      outcome %in% c("DA", "DOPAC", "DOPAC/DA", "HVA", "HVA/DA", "DOPAC_HVA/DA", "3MT",
+                     "D1Rlike", "D2R", "DAT") ~ "da_related", 
+      outcome %in% c("5HT", "5HIAA", "5HIAA/5HT",
+                     "5HT_2AR", "5HT_2CR", "5HT_1AR", "SERT", "5HT_6R") ~ "ser_related", 
+      outcome %in% c("NE", "VMA", "VMA/NE", "MHPG") ~ "ne_related", 
+      T ~ out_grouped
     ),
   
     ba_grouped = case_when(
-      str_detect(brain_area_publication, "striatum") ~ "striatum",
+      str_detect(brain_area_publication, "striatum|nucleus_accumb|pallid|caud") ~ "striatum_and_pallidum",
       str_detect(brain_area_publication, "nucleus_accumb") ~ "nucleus_accumbens",
-      str_detect(brain_area_publication, "pallid") ~ "pallidum",
       str_detect(brain_area_publication, "caud") ~ "caudate_putamen",
-      str_detect(brain_area_publication, "substant") ~ "substantia_nigra",
-      
+
 
       str_detect(brain_area_publication, "hippocamp|dentate|GZ") ~ "hippocampus",
       str_detect(brain_area_publication, "amygda") ~ "amygdala", 
       str_detect(brain_area_publication, "frontal") ~ "prefrontal_cortex",
-      str_detect(brain_area_publication, "hypothal|mammilary|suprachiasmatic|incerta|supraoptic") ~ "hypothalamus_and_nuclei",
+      str_detect(brain_area_publication, "hypothal|mammilary|suprachiasmatic|incerta|optic") ~ "hypothalamic_nuclei",
       
       
-      str_detect(brain_area_publication, "thalam|habenula") ~ "thalamus_and_nuclei",
-      str_detect(brain_area_publication, "gray|raphe|midbrain") ~ "midbrain_and_nuclei",
+      str_detect(brain_area_publication, "thalam|habenula") ~ "thalamic_nuclei",
+      str_detect(brain_area_publication, "gray|raphe|midbrain|medulla|pons|brainstem|colliculus|substant|tegmental") ~ "brainstem_and_midbrain",
       
-      str_detect(brain_area_publication, "olfact") ~ "olfactory_areas",
+   #   str_detect(brain_area_publication, "olfact") ~ "olfactory_areas",
 
-      str_detect(brain_area_publication, "ventricles|edinger|internal_capsule") ~ "other_areas",
-      str_detect(brain_area_publication, "cortex") ~ "cortex_other",
-      str_detect(brain_area_publication, "medulla|pons|brainstem") ~ "brainstem",
-      str_detect(brain_area_publication, "colliculus") ~ "colliculus",
+      str_detect(brain_area_publication, "ventricles|edinger|internal_capsule|cortex|endopiri|olfact") ~ "other_areas",
+    #  str_detect(brain_area_publication, "cortex") ~ "cortex_other",
+   #   str_detect(brain_area_publication, "medulla|pons|brainstem") ~ "brainstem",
+    #  str_detect(brain_area_publication, "colliculus") ~ "colliculus",
       
       T ~ brain_area_publication
     )
@@ -210,24 +217,24 @@ mono <- dat_xl$out_monoamines %>%
     #  T~ other_life_experience ## double check if correct
       
     ),
-    
-    major_life_events = case_when(
-      behavior == "naive" ~ "no", 
-      str_detect(housing_after_weaning, "single") ~ "yes",
-      str_detect(other_life_experience, "7day footshock") ~ "yes",
-      str_detect(other_life_experience, "chronic restraint stress|chronic variable stress|unpredictable chronic stress|fox odor|chronic stress immobilization|triple stressor|restraint stress|stress immobilization|chronic unpredictable stress|chronic variable mild stress|chronic mild stress") ~ "yes",
-      str_detect(other_life_experience, "single housing| single housed|individual housing") ~ "yes",
-      str_detect(other_life_experience, "blood collection tail|blood sampl|blood collection") ~ "yes",
-      str_detect(other_life_experience, "anesthe|microdial|surgery") ~ "yes",
-      
+   
+   major_life_events = case_when(
+     behavior == "naive" ~ "no", 
+     str_detect(housing_after_weaning, "single") ~ "yes",
+     str_detect(other_life_experience, "7day footshock") ~ "yes",
+     str_detect(other_life_experience, "chronic restraint stress|chronic variable stress|unpredictable chronic stress|fox odor|chronic stress immobilization|triple stressor|restraint stress|stress immobilization|chronic unpredictable stress|chronic variable mild stress|chronic mild stress") ~ "yes",
+     str_detect(other_life_experience, "single housing| single housed|individual housing") ~ "yes",
+     str_detect(other_life_experience, "blood collection tail|blood sampl|blood collection") ~ "yes",
+     str_detect(other_life_experience, "anesthe|microdial|surgery") ~ "yes",
+     
      T~ "no"
      ## double check if correct
-   #   T~ other_life_experience ## double check if correct
-      
-    ), 
+     #   T~ other_life_experience ## double check if correct
+     
+   ), 
     
     at_death = case_when(
-      str_detect(acute_experience_description, "rest") ~ "rest",
+      str_detect(acute_experience_description, "rest|unclear") ~ "rest",
       str_detect(acute_experience_description, "footshock|restraint|odor|FST|immobilization|forced swim|MWM|implantation_3h_prior|social defeat|resident intruder") ~ "stressed",
       str_detect(acute_experience_description, "EPM|injection|fasting|novel environment|single house|behavioral experiments") ~ "aroused",
       T ~ acute_experience_description
@@ -334,19 +341,30 @@ mono <- dat_xl$out_monoamines %>%
   # rename brain areas
   mutate(
     ba_main = case_when(
-      str_detect(brain_area_publication, "dentate|GZ") ~ "dentate_gyrus", 
-      str_detect(brain_area_publication, "CA1") ~ "CA1", 
-      str_detect(brain_area_publication, "CA3") ~ "CA3", 
-      str_detect(brain_area_publication, "CA4") ~ "CA4", 
-      str_detect(brain_area_publication, "hippocamp") ~ "hippocampus_total", 
+      str_detect(brain_area_publication, "striatum") ~ "striatum",
+      str_detect(brain_area_publication, "nucleus_accumb") ~ "nucleus_accumbens",
+      str_detect(brain_area_publication, "pallid") ~ "pallidum",
+      str_detect(brain_area_publication, "caud") ~ "caudate_putamen",
+      str_detect(brain_area_publication, "substant") ~ "sub_nigra",
+      str_detect(brain_area_publication, "tegment") ~ "vta",
       
-      brain_area_publication == "cortex_prefrontal" ~ "prefrontal_cortex",
-      str_detect(brain_area_publication, "prefrontal_cortex") ~ "prefrontal_cortex", 
       
-      brain_area_publication == "amygdala_basolateral" ~ "basolateral_amygdala",
-      str_detect(brain_area_publication, "nucleus_accumbens") ~ "nucleus_accumbens", 
-      str_detect(brain_area_publication, "orbital_frontal") ~ "orbitofrontal_cortex",
-      str_detect(brain_area_publication, "cortical") ~ "cortex",
+      str_detect(brain_area_publication, "hippocamp|dentate|GZ") ~ "hippocampus",
+      str_detect(brain_area_publication, "amygda") ~ "amygdala", 
+      str_detect(brain_area_publication, "frontal") ~ "prefrontal_cortex",
+      str_detect(brain_area_publication, "hypothal|mammilary|suprachiasmatic|incerta|optic") ~ "hypothalamic_nuclei",
+      
+      
+      str_detect(brain_area_publication, "thalam|habenula") ~ "thalamic_nuclei",
+      str_detect(brain_area_publication, "raphe|midbrain|colliculus") ~ "midbrain",
+      str_detect(brain_area_publication, "gray|medulla|ponsbrainstem|") ~ "brainstem_and_hindbrain",
+      
+      str_detect(brain_area_publication, "olfact") ~ "olfactory_areas",
+      
+      str_detect(brain_area_publication, "ventricles|edinger|internal_capsule|endopiri") ~ "other_areas",
+      str_detect(brain_area_publication, "cortex") ~ "other_cortical",
+      #   str_detect(brain_area_publication, "medulla|pons|brainstem") ~ "brainstem",
+      #  str_detect(brain_area_publication, "colliculus") ~ "colliculus",
       
       T ~ brain_area_publication
     ),
@@ -366,10 +384,10 @@ mono <- dat_xl$out_monoamines %>%
     
   # select vars of interest
   dplyr::select(
-    cite, authors, year, link, id, exp_id, outcome_id, 
+    cite, authors, year, link, id, exp_id, outcome_id,
     sex, species, strain, age_testing_weeks, model, origin, housing_after_weaning,   
     behavior, major_life_events, at_death,
-    outcome, out_grouped, product_measured, technique,
+    outcome, out_grouped, out_mono, product_measured, technique,
     brain_area_publication, ba_grouped, brain_area_hemisphere, ba_main, ba_location, 
     data_unit, data_unit_check,
     n_c, n_e, mean_c, mean_e, sd_c, sd_e, sys_review_sig
