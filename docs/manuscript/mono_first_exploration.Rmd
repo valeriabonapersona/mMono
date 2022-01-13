@@ -3,46 +3,31 @@ title: 'Analysis of the effects of Early Life Adversity on monoamines'
 output: word_document
 ---
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = FALSE)
+knitr::opts_chunk$set(echo = FALSE, warning=FALSE, message = FALSE)
 source("config/utilities.R")
 source("src/general_funs.R")
 library(knitr) # for tables
-# library(metaforest) # for exploratory analysis
-# library(caret) # for exploratory analysis
+library(metaforest) # for exploratory analysis
+library(caret) # for exploratory analysis
 options(scipen=1, digits=3)
 ```
-
+ 
 # Results
 
 ```{r load data, include=FALSE}
-dat <- readRDS(paste0(final, "data_for_analysis.RDS"))
-
-# categorization outcomes
-monoamines <- c("NE", "5HT", "DA")
-metabolites <- c("5HIAA/5HT", "VMA", "VMA/NE", "MHPG", "DOPAC", "DOPAC/DA", "HVA",
-                 "5HIAA", "3MT", "HVA/DA", "DOPAC_HVA/DA")
-enzymes <- c("TH", "COMT", "TPH", "TPH2", "MAO_A")
-recept <- c("5HT_2AR", "5HT_2CR", "D1R", "D2R", "DAT", "5HT_1AR", "SERT", "D3R", 
-            "5HT_6R")
-
-da_related <- c("DA", "DOPAC", "DOPAC/DA", "HVA", "HVA/DA", "DOPAC_HVA/DA", "3MT",
-                "D1R", "D2R", "D3R", "DAT")
-ser_related <- c("5HT", "5HIAA", "5HIAA/5HT",
-                 "5HT_2AR", "5HT_2CR", "5HT_1AR", "SERT", "5HT_6R")
-ne_related <- c("NE", "VMA", "VMA/NE", "MHPG")
-
+dat_full <- readRDS(paste0(final, "data_for_analysis.RDS"))
 
 ## check all outcomes present: must be true
-length(c(monoamines, metabolites, enzymes, recept)) == n_distinct(dat$outcome)
+#length(c(monoamines, metabolites, enzymes, recept)) == n_distinct(dat_full$outcome)
 
-id_both_sex <- dat %>% 
+id_both_sex <- dat_full %>% 
   group_by(id, sex) %>% 
   count() %>%
   pivot_wider(names_from = "sex", values_from = "n") %>% 
   na.omit()
 
 # for freq females
-freq_fem <- dat %>% 
+freq_fem <- dat_full %>% 
   filter(sex == "female") %>%
   group_by(out_grouped) %>% 
   summarize(
@@ -51,23 +36,38 @@ freq_fem <- dat %>%
   )
 
 
+turnovers <- c("DOPAC/DA", "HVA/DA", "DOPAC_HVA/DA", "5HIAA/5HT", "VMA/NE")
+
+
+previous_da <- c("24961311", "21396433", "19154431", "17490864", "27338206",
+                 "26939765", "27936186", "10188636", "25535855", "24713150",
+                 "25159716", "20828601", "22934157", "23994181", "15322726", 
+                 "24140426", "26620542", "23036844", "16171878", "11170216",
+                 "23313435", "18501492", "21741625", "14568037", "23395600", 
+                 "26539755", "8843018", "ISSN03043940", "17492273", "22133315",
+                 "25740916", "16412549", "23922862", "20144661", "21596067")
+
+only_da <- dat_full %>% filter(out_mono == "da_related" | outcome %in% c("TH", "MAO_A", "COMT")) %>% pull(id) %>% unique()
+
 ```
 
+## Update from dopamine
+In the dopamine paper of 2018, we had included 50 postnatal publications, of which `r n_distinct(previous_da)` using ELA models as alterations of maternal care. The inclusion/exclusion criteria were different from the current analysis, and only `r sum(previous_da %in% only_da)` of the previous publications were used in the current analysis. Lastly, we have newly added `r sum(!only_da %in% previous_da)` publications.
+
 ## Study selection and characteristics
-An overview of the study design is summarized in the flow chart (Fig. 1 - *still to do*). Our pre-specified inclusion criteria (**Methods**) were met by `r n_distinct(dat$id)` publications, published between `r str_remove_all(dat$cite, ".*\\(") %>% str_remove_all("\\)") %>% as.numeric() %>% min()` and `r str_remove_all(dat$cite, ".*\\(") %>% str_remove_all("\\)") %>% as.numeric() %>% max()`. The included publications contributed `r n_distinct(dat$exp_id)` unique experiments for a total of `r nrow(dat)` comparisons, from which we extracted statistical measurements (e.g. mean or median, standard error (SEM), deviation (SD) or interquantile range (IQR), and sample size (N)). X publications (ref) and X other comparisons were excluded from the analysis as it was not possible to obtain any statistical measurement.
 
-The included publications used mainly rats (n~publ~ = `r length(unique(dat[dat$species == "rat",]$id))/length(unique(dat$id))*100`%) and the maternal separation ELA model (n~publ~ = `r length(unique(dat[dat$model == "maternal_separation",]$id))/length(unique(dat$id))*100`%), followed by material deprivation and isolation (n~publ~ = `r length(unique(dat[dat$model %in% c("maternal_deprivation", "isolation"),]$id))/length(unique(dat$id))*100`%) and lastly limited nesting and bedding (n~publ~ = `r length(unique(dat[dat$model == "limited_nesting",]$id))/length(unique(dat$id))*100`%). 
+An overview of the study design is summarized in the flow chart (Fig. 1 - *still to do*). Our pre-specified inclusion criteria (**Methods**) were met by `r n_distinct(dat_full$id)` publications, published between `r str_remove_all(dat_full$cite, ".*\\(") %>% str_remove_all("\\)") %>% as.numeric() %>% min()` and `r str_remove_all(dat_full$cite, ".*\\(") %>% str_remove_all("\\)") %>% as.numeric() %>% max()`. The included publications contributed `r n_distinct(dat_full$exp_id)` unique experiments for a total of `r nrow(dat_full)` comparisons, from which we extracted statistical measurements (e.g. mean or median, standard error (SEM), deviation (SD) or interquantile range (IQR), and sample size (N)). X publications (ref) and X other comparisons were excluded from the analysis as it was not possible to obtain any statistical measurement.
 
-A total of ~`r round(sum(c(dat$n_e, dat$n_c)))` animals were used, `r sum(c(dat[dat$sex == "male",]$n_e, dat[dat$sex == "male",]$n_c)) / sum(c(dat$n_e, dat$n_c)) * 100`% of which were males. `r n_distinct(id_both_sex$id)` publications performed experiments in both male and female rodents. Similarly to previous studies, we aimed to analyze males and females separately, as two different biological systems, since sex-dismorphic characteristics have been frequently observed in stress research. 
+The included publications used mainly rats (n~publ~ = `r length(unique(dat_full[dat_full$species == "rat",]$id))/length(unique(dat_full$id))*100`%) and the maternal separation ELA model (n~publ~ = `r length(unique(dat_full[dat_full$model == "maternal_separation",]$id))/length(unique(dat_full$id))*100`%), followed by material deprivation and isolation (n~publ~ = `r length(unique(dat_full[dat_full$model %in% c("maternal_deprivation", "isolation"),]$id))/length(unique(dat_full$id))*100`%) and lastly limited nesting and bedding (n~publ~ = `r length(unique(dat_full[dat_full$model == "limited_nesting",]$id))/length(unique(dat_full$id))*100`%). 
 
 ```{r outliers, include=FALSE}
-all_out <- unique(dat$outcome)
+all_out <- unique(dat_full$outcome)
 res <- data.frame()
 row <- 1
 
 for (o in all_out) {
   
-  dat_ft <- dat[dat$outcome == o,]
+  dat_ft <- dat_full[dat_full$outcome == o,]
   
   if(nrow(dat_ft) > 1) {
     
@@ -93,89 +93,1263 @@ for (o in all_out) {
   
 }
 
-inf_df <- dat %>% filter(unique_id %in% res$index)
+inf_df <- dat_full %>% filter(unique_id %in% res$index)
 
-dat <- dat %>% 
+dat_full <- dat_full %>% 
   mutate(
     outlier = ifelse(
-      abs(scale(dat$yi)) > 3.29, "possible", "no"
+      abs(scale(dat_full$yi)) > 3.29, "possible", "no"
     )
   )
 
+out_pos_id <- dat_full %>% filter(outlier == "possible") %>% pull(unique_id) %>% unique()
 
+out_id <- out_pos_id[out_pos_id %in% inf_df$unique_id]
 ```
 
-`r dat %>% filter(outlier == "possible") %>% nrow()` comparisons were excluded from the analysis because >3.29 SD away from the mean and they were also identified as influential cases. Since `r dat %>% filter(outlier == "possible", cite == "Zhang(2015)") %>% nrow()` of these comparisons belonged to the same publication, which was then excluded from the analysis (n~additional comp~ = 1). Although no factor of the experimental design particularly stood out, in this publication the animals experienced several life events that might be considered traumatic (dams transported pregnant, chronic stress during adolescence/young adulthood, testing in stressful behavioral experiments). We therefore reasoned that the population studied in this publication was not comparable with the others.
+`r length(out_id)` comparisons was excluded from the analysis because >3.29 SD away from the mean and it was also identified as an influential case. In this comparison, noradrenaline protein was measured with HPLC in female control and ELA animals from dams transported pregnant and who experienced the forced swim test 15 minutes prior. Although no other elements of the experimental design particularly stood out, the animals had several major traumatic life experiences during life, and we therefore reasoned that the population studied in this publication was not comparable with the others.
 
 
 ```{r outliers removal}
-dat <- dat %>% 
-  filter(
-    cite != "Zhang(2015)", 
-    outlier == "no"
-  )
+dat_full <- dat_full %>% 
+  filter(unique_id != "monoamines 319") # outlier and influential
+  
 ```
 
 ## Visualizations of the data
 ### Population
 
-```{r population, fig.height=10, fig.width=10}
-pop_vars <- c("species", "sex", "age_testing_weeks", "model")
-
-g_pop <- list()
-for (i in pop_vars){
-  g_pop[[i]] <- dat %>% 
-    mutate(i = str_to_sentence(i)) %>%
-    ggplot(aes_string(i, fill = "id")) + 
+```{r pop fig, fig.height=6, fig.width=8, warning=FALSE}
+## bar plots
+g_age <- dat_full %>% 
+    ggplot(aes(age_testing_weeks, fill = id)) + 
     geom_histogram(stat="count", color = "black") + 
     labs(
       y = expression("N"["comparisons"]), 
-      x = ifelse(i == "age_testing_weeks", "Weeks", ""), 
-      title = str_to_sentence(i)
+      x = "Weeks", 
+      title = "Age"
       ) + 
     my_theme + 
     theme(legend.position = "null", 
           axis.text.x = element_text(angle = 45, hjust = 1)) + 
-    scale_fill_manual(values = rep("white", n_distinct(dat$id)))
-}
+    scale_fill_manual(values = rep("white", n_distinct(dat_full$id)))
 
+g_model <- dat_full %>% 
+  mutate(model = str_replace_all(model, "_", " ")) %>%
+  ggplot(aes(factor(model, levels = c("maternal separation", "isolation", "maternal deprivation", "limited nesting")), fill = id)) + 
+  geom_histogram(stat="count", color = "black") + 
+  labs(
+    y = expression("N"["comparisons"]), 
+    x = "ELA model", 
+    title = "ELA model"
+    ) + 
+  my_theme + 
+  theme(legend.position = "null", 
+        axis.text.x = element_text(angle = 45, hjust = 1)) + 
+  scale_fill_manual(values = rep("white", n_distinct(dat_full$id)))
+
+
+# other life
+
+df_life <- dat_full %>% 
+  select(exp_id, sex, species, origin, behavior, major_life_events) %>%
+  unique() %>%
+  pivot_longer(cols = c(-exp_id), names_to = "vars") %>%
+  group_by(vars, value) %>% 
+  summarise(
+    n = length(exp_id), 
+    perc = n/length(unique(dat_full$exp_id))*100, 
+    .groups = "drop"
+  ) %>%
+  mutate(
+    y_pos = n/2,
+    lab = str_replace_all(value, "_", " "),
+    lab = case_when(
+      lab == "not specified" ~ "not \n specified", 
+      lab == "purchased pregnant dams" ~ "purchased \n pregnant dams", 
+      lab == "purchased naive parents" ~ "purchased \n naïve parents", 
+      lab == "non stressful" ~ "non \n stressful",
+
+      T ~ lab
+    ),
+    vars = ifelse(vars == "trauma_presence", "other trauma", vars)
+    )
+
+g_life <- df_life %>%
+  ggplot(aes(str_replace_all(vars, "_", " "), y = perc, label = lab, fill = lab)) + 
+  geom_bar(stat = "identity", colour = "black") +
+  geom_text(size = 3, position = position_stack(vjust = 0.5)) + 
+  labs(
+    y = "% experiments", 
+    x = ""
+    ) + 
+  my_theme +
+  theme(legend.position = "null", 
+        axis.text.x = element_text(angle = 45, hjust = 1)) + 
+  scale_fill_manual(values = rep("white", n_distinct(dat_full$id))) + 
+  coord_flip()
+  
+  
+
+# put together
 ggpubr::ggarrange(
-  g_pop[[1]], g_pop[[2]], 
-  g_pop[[3]], g_pop[[4]], 
-  ncol = 2, nrow = 2
+  ggpubr::ggarrange(
+    g_age, 
+    g_model, 
+    ncol = 2, nrow = 1, labels = c("A", "B")
+  ), 
+  g_life,
+  nrow = 2, # heights = c(2,1), 
+  labels = c("", "C")
 )
 
 ```
 
-### Other life experiences
-```{r other life exp, fig.height=6, fig.width=8}
+The experimental design of only  `r dat_full %>% filter(trauma_score == 0) %>% pull(exp_id) %>% unique() %>% length()` experiments (`r dat_full %>% filter(trauma_score == 0) %>% pull(exp_id) %>% unique() %>% length() / length(unique(dat_full$exp_id)) * 100`%, n~study~ = `r dat_full %>% filter(trauma_score == 0) %>% pull(id) %>% unique() %>% length()`) did not use elements that may be considered additional traumas (i.e. scored "no" in "major life events", did not score "purchased pregnant dams" in origin, and did not score "stressful" in behavior). Of these, `r dat_full %>% filter(behavior == "naive", major_life_events == "no", at_death == "rest") %>% pull(exp_id) %>% unique() %>% length()` experiments (n~study~ = `r dat_full %>% filter(behavior == "naive", major_life_events == "no", at_death == "rest") %>% pull(id) %>% unique() %>% length()`) measured monoamines outcomes in naive animals.
 
-stress_vars <- c("origin", "housing_after_weaning", "behavior", 
-                 "major_life_events", "trauma_presence")
 
-dat %>% 
-  select(exp_id, all_of(stress_vars)) %>% 
-  mutate(
-    origin = ifelse(origin == "purchased_pregnant_dams", "stress", "no"),
-    housing_after_weaning = ifelse(housing_after_weaning == "single", "stress", "no"),
-    behavior = ifelse(behavior == "stressful", "stress", ifelse(behavior == "non_stressful", "non_stress", "no")),
-    major_life_events = ifelse(major_life_events=="yes", "stress", "no"), 
-    trauma_presence = ifelse(trauma_presence == "yes", "stress", "no")
-  ) %>% 
-  pivot_longer(cols = all_of(stress_vars)) %>% 
+### Brain areas
+```{r freq ba, fig.height=5, fig.width=8, warning=FALSE}
+ba_order <- c("prefrontal cortex",
+              "striatum and pallidum", 
+              "hippocampus", 
+              "brainstem and midbrain",
+              "amygdala",
+              "hypothalamic nuclei",
+              "thalamic nuclei", 
+              "other areas"
+              )
+
+g_freq_ba <- dat_full %>%
   
-  ggplot(aes(name, exp_id, fill = value)) + 
+  group_by(sex, ba_grouped) %>% 
+  summarize(
+    n = length(unique(unique_id)),
+    .groups = "drop"
+  ) %>% 
+  mutate(
+    tot_n = ifelse(sex == "male", nrow(dat_full[dat_full$sex == "male",]), nrow(dat_full[dat_full$sex == "female",])), 
+    unique_id = n/tot_n*100
+  ) %>%
+  mutate(
+    ba_grouped = str_replace_all(ba_grouped, "_", " "),
+    ba_grouped = factor(ba_grouped, levels = rev(ba_order))
+    
+    ) %>%
+  ggplot(aes(ba_grouped, unique_id)) + 
+  geom_segment(aes(x=ba_grouped ,xend=ba_grouped, 
+                   y=0, yend=unique_id), color="grey") +
+  geom_point(size = 2) +
+  coord_flip() + 
+  facet_wrap(~ sex, scales = "free") +
+  scale_y_continuous(breaks = c(0, 10, 20, 30, 40), 
+                     labels = c("0%", "10%", "20%", "30%", "40%")) + 
+ # scale_y_discrete(limits = "rev") + 
   labs(
-    x = "",
-    y = "Experiments"
+    y = "% comparisons",
+    x = "Brain areas", 
+    caption = expression(italic("Figure 2a")~"Frequency across brain areas.")
   ) + 
-  geom_tile() + 
-  scale_fill_manual(values = c("white", "grey", "black")) + 
-  my_theme +
-  theme(axis.text.x = element_text(angle = 90, hjust = 1),
-        axis.text.y = element_text(size = 6))
+  my_theme
+
+g_freq_ba
 
 ```
 
-The experimental design of only other `r dat %>% filter(trauma_score == 0) %>% pull(exp_id) %>% unique() %>% length()` experiments (`r dat %>% filter(trauma_score == 0) %>% pull(exp_id) %>% unique() %>% length() / length(unique(dat$exp_id)) * 100`%) did not use elements that may be considered additional traumas. Of these, `r dat %>% filter(behavior == "naive", major_life_events == "no", at_death == "rest") %>% pull(exp_id) %>% unique() %>% length()` experiments measured monoamines outcomes in naive animals.
+A variety of different areas has been investigated, especially in males. The most common were prefrontal cortex, striatum/pallidum, hippocampus and brainstem/midbrain for both sexes. 
+
+
+A total of ~`r round(sum(c(dat_full$n_e, dat_full$n_c)))` animals were used, `r sum(c(dat_full[dat_full$sex == "male",]$n_e, dat_full[dat_full$sex == "male",]$n_c)) / sum(c(dat_full$n_e, dat_full$n_c)) * 100`% of which were males. `r n_distinct(id_both_sex$id)` publications performed experiments in both male and female rodents. Similarly to previous studies, we analyzed males and females separately, as two different biological systems, since sex-dismorphic characteristics have been frequently observed in stress research. 
+
+## Males
+
+```{r males prep}
+dat <- dat_full %>% 
+  filter(sex == "male") %>% 
+  filter(at_death == "rest") %>% 
+  filter(!outcome %in% turnovers)
+
+out_summary <- dat %>% 
+  group_by(ba_grouped, out_mono, outcome) %>% 
+  summarize(n_id = length(unique(id)), .groups = "drop")
+
+```
+
+```{r analysis males}
+
+## final
+mod <- rma.mv(
+  yi, vi, 
+#  random = ~ 1|exp_id,
+
+  random = ~ 1|exp_id,
+  method = "REML",
+#  data = actual_df,
+  data = dat, ## try also with actual_df
+  mods = ~ ba_grouped:outcome -1,
+  slab = cite
+)
+
+## for publication bias analysis
+males_mod <- rma(
+  yi, vi, 
+  method = "REML",
+  data = dat,
+  slab = exp_id
+)
+reg_males <- regtest(males_mod)
+
+## visualize all and check what's significant
+interactions <- names(data.frame(mod$X))
+
+## get testable observation
+freq_out_ba <- dat %>% 
+  group_by(outcome, ba_grouped) %>% 
+  summarize(
+    across(ends_with("id"), function(x) round(length(unique(x)),2)), 
+    .groups = "drop"
+  ) %>% 
+  mutate(enough = ifelse(id > 2, "green", "white"))
+
+f_mod <- data.frame(
+  inter = names(data.frame(mod$X)),
+  g = mod$beta, 
+  sem = mod$se,
+  pval = mod$pval
+) %>% 
+  mutate(
+    outcome = str_remove_all(rownames(.), ".*outcome") %>% str_remove_all("\\:.*"),
+    ba_grouped = str_remove_all(rownames(.), "ba_grouped") %>% str_remove_all("\\:.*")
+  ) %>% 
+  left_join(freq_out_ba) %>% 
+  left_join(dat %>% select(outcome, out_mono) %>% unique(), by = "outcome")
+
+
+  
+actual_df <- dat %>% 
+  left_join(freq_out_ba %>% 
+              rename(id_freq = id) %>% 
+              select(outcome, ba_grouped, id_freq)) %>% 
+  filter(id_freq > 2)
+```
+
+```{r prela heterogeneity}
+# Study of distribution of variance 
+mod <- rma.mv(
+  yi, vi, 
+  random = list(~1 | unique_id, ~1 | exp_id),
+  method = "REML",
+  data = dat, ## try also with actual_df
+  mods = ~ ba_grouped:outcome -1,
+  slab = cite
+)
+# 
+# #2-level model with both sigmas constrained to zero
+# mod_noWithnoBet <- rma.mv(yi, vi, 
+#                      random = list(~1 | each, ~1 | exp),
+#                      mod = ~domain:hit2Grouped -1,
+#                      sigma2 = c(0, 0),
+#                      digits = 3,
+#                      method = "REML",
+#                      data = dat)
+# 
+# #likelihood ratio test to determine the significance of the between-study variance
+# anova(mod, mod_noWithnoBet)
+# 
+# #2-level model without within-study variance >> between-study variance is estimated
+# mod_noWith <- rma.mv(yi, vi, 
+#                      random = list(~1 | each, ~1 | exp),
+#                      mod = ~domain:hit2Grouped -1,
+#                      sigma2 = c(0, NA),
+#                      digits = 3,
+#                      method = "REML",
+#                      data = dat)
+# 
+# #likelihood ratio test for significance of the between-study variance
+# anova(mod, mod_noWith)
+# 
+# #2-level model without between-study variance >> within-study variance is estimated
+# mod_noBet <- rma.mv(yi, vi, 
+#                     random = list(~1 | each, ~1 | exp),
+#                     mod = ~domain:hit2Grouped -1,
+#                     sigma2 = c(NA, 0),
+#                     digits = 3,
+#                     method = "REML",
+#                     data = dat)
+# 
+# #ikelihood ratio test for significance of the within-study variance
+# anova(mod, mod_noBet)
+
+# calculate i2
+get_i2_ML <- function(dat, mod) {
+  #determining how the total variance is distributed over the 3 levels of the meta-analytic model
+  #adapted from Assink(2016)
+  n <- length(dat$vi)
+  list.inverse.variances <- 1 / (dat$vi)
+  sum.inverse.variances <- sum(list.inverse.variances)
+  squared.sum.inverse.variances <- (sum.inverse.variances) ^ 2
+  list.inverse.variances.square <- 1 / (dat$vi ^ 2)
+  sum.inverse.variances.square <- sum(list.inverse.variances.square)
+  
+  numerator <- (n - 1) * sum.inverse.variances
+  denominator <- squared.sum.inverse.variances - sum.inverse.variances.square
+  estimated.sampling.variance <- numerator / denominator
+  
+  I2_1 <- (estimated.sampling.variance) / (mod$sigma2[1] +
+                                             mod$sigma2[2] + estimated.sampling.variance)
+  I2_2 <- (mod$sigma2[1]) / (mod$sigma2[1] +
+                               mod$sigma2[2] + estimated.sampling.variance)
+  I2_3 <- (mod$sigma2[2]) / (mod$sigma2[1] +
+                               mod$sigma2[2] + estimated.sampling.variance)
+  
+  modVariance_1 <- I2_1 * 100
+  modVariance_2 <- I2_2 * 100
+  modVariance_3 <- I2_3 * 100
+  
+  return(
+    data.frame(
+      i2_1 = round(modVariance_1, 2),
+      i2_2 = round(modVariance_2, 2),
+      i2_3 = round(modVariance_3, 2)
+    )
+  )
+}
+
+
+get_i2_total <- function(dat, mod) {
+  # calculate I2
+  W <- diag(1/dat$vi)
+  X <- model.matrix(mod)
+  P <- W - W %*% X %*% solve(t(X) %*% W %*% X) %*% t(X) %*% W
+  i2 <- 100 * sum(mod$sigma2) / (sum(mod$sigma2) + 
+                                             (mod$k-mod$p)/sum(diag(P))) 
+  return(round(i2, 2))
+
+}
+
+get_i2 <- function(dat, mod) {
+  cbind(
+  data.frame(total = get_i2_total(dat, mod)),
+  get_i2_ML(dat, mod)
+)
+}
+
+
+mono_i2 <- get_i2(dat, mod)
+
+saveRDS(mono_i2, paste0(final,"prela_mono_i2.RDS"))
+
+```
+
+
+
+```{r analysis only suff, message=FALSE, warning=FALSE}
+## comparisons with sufficient publications (id > 2) - no trauma
+against_0 <- f_mod %>% 
+  filter(id > 2) %>% 
+  pull(inter) %>% 
+  unique() 
+
+# against_other <- f_mod %>% 
+#   select(outcome, ba_grouped, trauma_presence, id) %>% 
+#   pivot_wider(names_from = "trauma_presence", values_from = "id") %>% 
+#   filter(no > 2 & yes > 2) %>% 
+#   mutate(keep = "yes") %>%
+#   right_join(f_mod %>% select(inter, outcome, ba_grouped, trauma_presence)) %>% 
+#   filter(keep == "yes")
+# against_other_pos <- against_other %>% 
+#   filter(trauma_presence == "yes") %>% 
+#   pull(inter) %>% 
+#   unique()
+# against_other_neg <- against_other %>% 
+#   filter(trauma_presence == "no") %>% 
+#   pull(inter) %>%
+#   unique()
+## now selected only if they had enough, not only those publications with both
+
+#length(against_other_pos) == length(against_other_neg)
+
+contr <-   cbind(
+    sapply(against_0, function(x) 
+      ifelse(interactions == x,
+             #1/sum(str_detect(interactions,x)),
+             1,
+             0
+             )
+      ) %>% data.frame()
+    
+    
+    # sapply(1:length(against_other_pos), function(i)
+    #   
+    #   ifelse(interactions %in% against_other_pos[[i]], 
+    #                   1/sum(interactions %in% against_other_pos[[i]]),
+    #                   ifelse(interactions %in% against_other_neg[[i]], 
+    #                          -1/sum(interactions %in% against_other_neg[[i]]), 0))
+    #   
+    # )
+
+    # sapply(against_other, function(x)
+    # 
+    #   ifelse(str_detect(interactions,x),
+    #          1/sum(str_detect(interactions,x)),
+    #          -1/(length(interactions)-sum(str_detect(interactions,x)))
+    #          )
+    # )
+)
+
+contr <- contr %>% t() %>% as.matrix()
+res <- summary(multcomp::glht(mod, linfct = contr, df=df.residual(mod)),
+               test=multcomp::adjusted('none'))
+
+
+```
+
+
+We selected experiments conducted in male animals at rest (n~comp~ = `r nrow(dat)`, n~exp~ = `r length(unique(dat$exp_id))`, n~study~ = `r length(unique(dat$id))`). Additionally, `r dat_full %>% filter(sex == "male", at_death != "rest") %>% pull(exp_id) %>% unique() %>% length()` experiments reported `r dat_full %>% filter(sex == "male", at_death != "rest") %>% nrow()` outcomes that were measured when the animals were in an aroused / stressed state. This will be further addressed below. 
+
+In the main analysis, we considered only the concentration of monoamines' metabolites, and not the turnover. `r dat_full %>% filter(sex == "male") %>% filter(outcome %in% turnovers) %>% pull(id) %>% unique() %>% length()` publications reported also data on turnovers. These were not included in the meta-analysis to avoid redundancy; they are however reported at a systematic review level in the table below. 
+
+```{r male turnovers table}
+turn_males <- dat_full %>% 
+  filter(sex == "male", 
+         outcome %in% turnovers) %>% 
+  mutate(
+    g = paste0(round(yi,2), "(", round(vi, 2), ")"),
+    sig = case_when(
+      ((abs(yi) - vi) > 0) & yi > 0 ~ "+",
+      ((abs(yi) - vi) > 0) & yi < 0 ~ "-",
+      T ~ "ns"
+    )
+  ) %>%
+  rename(age_weeks = age_testing_weeks) %>%
+  mutate(
+    age_weeks = round(age_weeks, 1),
+    age_weeks = ifelse(is.na(age_weeks), "", age_weeks), 
+    model = str_replace_all(model, "_", " ")
+    ) %>%
+  select(outcome, cite, id, species, model, age_weeks, 
+         trauma_presence, at_death, g, sig) %>% 
+  mutate(
+    outcome = ifelse(outcome == "DOPAC_HVA/DA", "(DOPAC+HVA)/DA", outcome), 
+  ) %>%
+  arrange(outcome) 
+names(turn_males) <- str_replace_all(names(turn_males), "_", " ")
+
+kable(turn_males, caption = "Table 1. Summary evidence on metabolites' turnover.")
+
+```
+
+```{r outcomes males, fig.height=8, fig.width=8}
+out_summary %>%
+  mutate(
+    out_mono = case_when(
+      out_mono == "da_related" ~ "Dopamine",
+      out_mono == "ne_related" ~ "Noradrenaline",
+      out_mono == "ser_related" ~ "Serotonin", 
+      out_mono == "enzymes" ~ "Enzymes",
+      T ~ out_mono
+    ), 
+    ba_grouped = str_replace_all(ba_grouped,"_", " "), 
+    ba_grouped = factor(ba_grouped, ba_order), 
+    outcome = str_replace_all(outcome, "_", " ")
+  ) %>%
+  ggplot(aes(ba_grouped, 
+             outcome, fill = n_id)) + 
+  geom_tile() + 
+  facet_wrap(~ out_mono, scales = "free") + 
+  my_theme + 
+  labs(
+    x = "Brain areas", 
+    y = "Outcomes", 
+    fill = "N publications", 
+    title = "Frequency outcomes - Males"
+  ) + 
+  
+  theme(
+    axis.text.x = element_text(angle = 45, hjust = 1), 
+    legend.position = "bottom"
+  ) + 
+  scale_fill_viridis()
+
+```
+
+The figure above visualizes the distribution of male outcomes across brain areas. Dopamine outcomes have been investigated mainly in the prefrontal cortex and striatum/pallidum. Serotonin has been frequently investigated in several brain areas; however, its metabolites mainly in the prefrontal cortex and hippocampus. Information on the noradrenergic system is rather limited, with noradrenaline being most commonly studied in prefrontal cortex, striatum and hippocampus. 
+
+
+In our 3-level mixed effect model, we tested all possible (>3 publications, n~eligible comp~ = `r nrow(actual_df)`) outcomes per brain area. In this analysis, we performed `r length(res$test$pvalues)` tests: `r sum(res$test$pvalues<0.05)` had p value (non adjusted) below 0.05, of which `r sum(res$test$pvalues<0.01)` with pvalue < 0.01. The significant comparisons were `r str_replace_all(paste(rownames(res$linfct)[res$test$pvalues<0.01], collapse = ", "), "ba_grouped", "") %>% str_replace_all(".outcome", " ")`. 
+
+
+```{r visual results ba}
+
+sig_labels <- data.frame(
+  comparison = names(res$test$pvalues), 
+  pval = res$test$pvalues
+) %>% 
+  mutate(
+    comparison = str_remove_all(comparison, "ba_grouped") %>% 
+      str_remove_all("outcome"), 
+    lab_sig = case_when(
+      pval < .001 ~ "***", 
+      pval < .01 ~ "**", 
+      pval < .05 ~ "#", 
+      T ~ ""
+    )
+  ) %>% 
+  separate(comparison, into = c("ba_grouped", "outcome"), sep = "\\.") %>% 
+  left_join(dat %>% select(outcome, out_mono) %>% unique(), by = "outcome") %>% 
+  right_join(freq_out_ba %>% 
+              rename(lab_id_freq = id, 
+                     lab_comp_freq = unique_id) %>% 
+              select(outcome, ba_grouped, lab_id_freq, lab_comp_freq)) %>% 
+  left_join(f_mod %>% select(outcome, ba_grouped, g, enough), by = c("outcome", "ba_grouped")) %>% 
+  
+  mutate(
+    g = ifelse(g >=0, round(g, 2) + 0.4, (round(g, 2) - 0.4))
+  )
+
+  
+g_mono <- list()
+
+for (a in unique(dat$out_mono)) {
+
+  for (ba in unique(dat$ba_grouped)) {
+  
+    g_dat <- f_mod %>%
+  filter(
+    ba_grouped %in% ba, 
+    out_mono %in% a
+  ) 
+    
+    g_lab <- sig_labels %>%
+  filter(
+    ba_grouped %in% ba, 
+    out_mono %in% a
+  )
+    
+    
+    if (nrow(g_dat) > 1) {
+      g_mono[[paste(a, ba, sep = "_")]] <- g_dat %>%
+  ggplot(aes(str_replace_all(outcome, "_", " "), g, fill = enough)) +
+
+#  ggplot(aes(trauma_presence, g, fill = enough)) +
+  geom_hline(yintercept = 0, color = "black") +
+  geom_bar(stat = "identity", colour = "black") +
+  geom_errorbar(aes(ymin = g-sem, ymax = g+sem), width = 0.2) +
+  
+  # beautiful
+ # ylim(c(-0.2,0.8)) +
+  my_theme +
+  labs(x="", y = "Hedge's g",
+      title = str_replace_all(paste("Males", a, ba), "_", " ")
+) +
+#  facet_grid(trauma_presence~., scales = "free_y") +
+  scale_fill_manual(values = c("green", "white"), breaks = c("green" = "green", "white" = "white") ) +
+  # geom_text(x = "Baseline", y = max(df_fig_main$g) + 0.2, label = "*", size = 20) +
+  # geom_text(aes(y = 0.05, label = paste("n = ", n), size = 20)) +
+  geom_text(data = g_lab, aes(label = lab_sig)) +
+  theme(text = element_text(size = 20),
+        axis.text.x = element_text(angle = 45, vjust = 1, hjust=1),
+        legend.position = "none")
+      
+      if (nrow(g_lab) > 0) {
+        
+        g_mono[[paste(a, ba, sep = "_")]] <- g_mono[[paste(a, ba, sep = "_")]] + 
+          geom_text(data = g_lab, aes(label = paste("study =", lab_id_freq), y = -2)) +
+          geom_text(data = g_lab, aes(label = paste("comp =", lab_comp_freq), y = -2.4))
+      }
+      
+    }
+    
+    
+  }
+  
+}
+
+```
+```{r males res, fig.height=6, fig.width=8}
+for (i in 1:length(g_mono)) {
+  print(g_mono[[i]])
+}
+```
+
+
+
+```{r variation analysis, eval=FALSE, fig.height=6, fig.width=8, include=FALSE}
+'NOTES 
+
+Lastly, we tested whether ELA increases variation in our outcomes. In particular, we hypothesised that ELA programs individuals towards more vulnerable/resilient phenotypes, which would translate into higher variability. The system would then need to receive an extra "kick" (for example by other traumatic experiences or in acute arousal/stress situations), to show what ELA predisposed for. 
+
+With this in mind, I categorized the experiments as trauma (yes/no) and acute status (yes/no), which bring to 4 groups. The experiments are not equally distributed in these groups, which has to be kept in mind for interpretation. 
+
+'
+var_df <- escalc(
+  "CVR", 
+  m1i = mean_e, sd1i = sd_e, n1i = n_e,
+  m2i = mean_c, sd2i = sd_c, n2i = n_c, 
+  data = var_df
+)
+
+mod_var_nomod <- rma.mv(
+  yi, vi, 
+  random = ~ 1|exp_id,
+  method = "REML",
+  data = var_df,
+  slab = cite
+)
+
+mod_var <- rma.mv(
+  yi, vi, 
+  random = ~ 1|exp_id,
+  method = "REML",
+  data = var_df,
+  mods = ~ any_hit - 1,
+  slab = cite
+)
+
+## visualize all and check what's significant
+interactions <- names(data.frame(mod_var$X))
+
+against_0 <- c("yestrauma_norest", "yestrauma_rest",
+                   "notrauma_norest", "notrauma_rest")
+
+contr <-   cbind(
+    sapply(c(against_0), function(x) 
+      ifelse(str_detect(interactions, x),
+             1/sum(str_detect(interactions,x)),
+             0
+             )
+      ) %>% data.frame()
+)
+
+contr <- contr %>% t() %>% as.matrix()
+
+res_var <- summary(multcomp::glht(mod_var, linfct = contr, df=df.residual(mod_var)),
+               test=multcomp::adjusted('none'))
+
+
+res_var_df <- data.frame(
+  group = names(res_var$test$coefficients),
+  g = res_var$test$coefficients, 
+  sem = res_var$test$sigma,
+  pval = res_var$test$pvalues
+) %>%
+  mutate(
+    trauma_presence = case_when(
+      str_detect(group, "notrauma") ~ "no", 
+      str_detect(group, "yestrauma") ~ "yes"
+    ), 
+    at_death = case_when(
+      str_detect(group, "norest") ~ "not rest", 
+      str_detect(group, "rest") ~ "rest"
+    ),
+    lab_sig = case_when(
+      lab_sig = case_when(
+      pval < .001 ~ "***", 
+      pval < .01 ~ "**", 
+      pval < .05 ~ "#", 
+      T ~ ""
+    )
+    )
+  ) %>% 
+  left_join(var_df %>% 
+              group_by(any_hit) %>% 
+              count() %>% 
+              rename(group = any_hit), by="group"
+            )
+
+res_var_df %>% 
+  ggplot(aes(fct_rev(at_death), g)) + 
+  geom_hline(yintercept = 0, color = "black") +
+  geom_bar(stat = "identity", colour = "black", fill = "white") +
+  geom_errorbar(aes(ymin = g-sem, ymax = g+sem), width = 0.2) +
+  facet_grid(~trauma_presence) + 
+  
+  # beautiful
+  my_theme +
+  labs(x="", y = "Hedge's g",
+      title = "Variation"
+) +
+  geom_text(aes(label = lab_sig, y = g+0.3)) +
+  geom_text(aes(label = n, y = -0.5)) +
+
+  theme(text = element_text(size = 20),
+        axis.text.x = element_text(angle = 45, vjust = 1, hjust=1),
+        legend.position = "none")
+
+'
+
+NOTES TO COPY BELOW
+Overall, our data suggest that ELA may increase variation across experimental outcomes (*g*(se) = `r mod_var_nomod$b`(`r mod_var_nomod$se`)), although this did not pass our significance threshold (*p* = `r mod_var_nomod$pval`). This effect of ELA seemed restricted to outcomes measured at rest in animals that did not experience other traumatic life events (*g*(se) = `r res_var$test$coefficients["notrauma_rest"]`(`r res_var$test$sigma["notrauma_rest"]`), *p* = `r res_var$test$pvalue["notrauma_rest"]`, figure above).
+
+'
+
+```
+
+
+### Life experiences as potential moderators
+
+```{r aroused}
+rest_stress <- dat_full %>% 
+  filter(sex == "male",
+         !outcome %in% turnovers) %>% 
+  mutate(at_death = ifelse(at_death != "rest", "not_rest", "rest")) %>%
+  group_by(outcome, ba_grouped, at_death, trauma_presence) %>% 
+  count() %>%
+  pivot_wider(names_from = "at_death", values_from = "n") %>% 
+  drop_na() %>%
+  mutate(keep = "yes") %>%
+  select(outcome, ba_grouped, keep) %>% 
+  left_join(dat_full %>% filter(sex == "male")
+            ) %>% 
+  filter(keep == "yes") %>% 
+   mutate(at_death = ifelse(at_death == "rest", "rest", "not_rest"))
+
+
+## final
+mod <- rma.mv(
+  yi, vi, 
+  random = ~ 1|id,
+  method = "REML",
+  data = rest_stress,
+  mods = ~ba_grouped:outcome:at_death:trauma_presence -1,
+  slab = cite
+)
+
+# rest publication bias
+rest_mod <- rma(
+  yi, vi, 
+  method = "REML",
+  data = rest_stress,
+  slab = exp_id
+)
+reg_rest <- regtest(rest_mod)
+
+## visualize all and check what's significant
+interactions <- names(data.frame(mod$X))
+atdeath_modtest <- anova(mod, L = rep(1/length(interactions), length(interactions)))
+
+
+against_0 <- c("at_deathrest.trauma_presenceno", 
+               "at_deathrest.trauma_presenceyes", 
+               "at_deathnot_rest.trauma_presenceno", 
+               "at_deathnot_rest.trauma_presenceyes"
+               )
+
+contr <-   cbind(
+  ifelse(
+    str_detect(interactions, "at_deathnot_rest"), 
+    -1 / (sum(str_detect(interactions, "at_deathnot_rest"))),
+    1 / (length(interactions) - sum(str_detect(interactions, "at_deathnot_rest")))
+    ),
+  ifelse(
+    str_detect(interactions, "trauma_presenceno"), 
+    -1 / (sum(str_detect(interactions, "trauma_presenceno"))),
+    1 / (length(interactions) - sum(str_detect(interactions, "trauma_presenceno")))
+    ),
+    sapply(against_0, function(x) 
+      ifelse(str_detect(interactions, x),
+             1/sum(str_detect(interactions,x)),
+             0
+             )
+      ) %>% data.frame()
+    
+)
+
+contr <- contr %>% t() %>% as.matrix()
+
+res_atdeath <- summary(multcomp::glht(mod, linfct = contr, df=df.residual(mod)),
+               test=multcomp::adjusted('none'))
+rownames(res_atdeath$linfct) <- c("rest_vs_not_rest", "trauma_yes_vs_no", 
+                                  "rest_trauma_no", "rest_trauma_yes",
+                                  "not_rest_trauma_no", "not_rest_trauma_yes")
+
+```
+
+We tested whether life experiences where significant moderators of the effects of ELA on monoamines' outcomes. We selected only those outcomes investigated in males in each of the life experiences groups, based on the 2x2 interactions between state of the animal at death (at rest or not) and other traumatic life events (experienced or not). The final dataset contained `r nrow(rest_stress)` observations (n~study~ = `r n_distinct(rest_stress$id)`, n~exp~ = `r n_distinct(rest_stress$exp_id)`), containing `r n_distinct(rest_stress$outcome)` outcomes distributed in `r n_distinct(rest_stress$ba_grouped)` brain areas. 
+
+We build a 3-level mixed effect model similar to the main analysis, but where the interaction between status of the animal at death (rest vs acute/stressed) and the experience of other traumatic life experiences (yes vs no) was included as a moderator (Q~M~(`r atdeath_modtest$QMdf[[1]]`) = `r atdeath_modtest$QM`, *p* = `r atdeath_modtest$QMp`). The effects of ELA were significant in those animals that were in an aroused/stressed state at death, but that did not experience other traumatic life events (t = `r res_atdeath$test$tstat[["at_deathnot_rest.trauma_presenceno"]]`, *p* = `r res_atdeath$test$pvalues[["at_deathnot_rest.trauma_presenceno"]]`). For the other groups, the effects of ELA were not significantly different from 0 (no trauma at rest: t = `r res_atdeath$test$tstat[["at_deathrest.trauma_presenceno"]]`, *p* = `r res_atdeath$test$pvalues[["at_deathrest.trauma_presenceno"]]`; with trauma at rest: t = `r res_atdeath$test$tstat[["at_deathrest.trauma_presenceyes"]]`, *p* = `r res_atdeath$test$pvalues[["at_deathrest.trauma_presenceyes"]]`; with trauma aroused/stressed: t = `r res_atdeath$test$tstat[["at_deathnot_rest.trauma_presenceyes"]]`, *p* = `r res_atdeath$test$pvalues[["at_deathnot_rest.trauma_presenceyes"]]` ). However, this effect may be overestimated due to the mild presence of publication bias (see section on Bias below). The main effects were not significant (acute experience: t = `r res_atdeath$test$tstat[[1]]`, *p* = `r res_atdeath$test$pvalues[[1]]`; traumatic life events: t = `r res_atdeath$test$tstat[[2]]`, *p* = `r res_atdeath$test$pvalues[[2]]`), although this was due to the restrictive significance threshold chosen in this study ($\alpha$ < 0.01).
+
+```{r males at death fig, fig.height=8, fig.width=8}
+g_dat_atdeath <- data.frame(
+  
+  group = rownames(res_atdeath$linfct),
+  g = res_atdeath$test$coefficients, 
+  sem = res_atdeath$test$sigma, 
+  pvalue = res_atdeath$test$pvalues
+  
+) %>% 
+  mutate(lab_sig = case_when(
+    pvalue < 0.001 ~ "***",
+    pvalue < 0.01 ~ "**", 
+    pvalue < 0.05 ~ "#",
+    T ~ ""))
+
+rest_n <- rest_stress %>% 
+  group_by(at_death, trauma_presence) %>% 
+  summarize(n_comp = length(at_death), n_id = length(unique(id)), .groups = "drop") %>% 
+  mutate(group = paste0(at_death, "_trauma_", trauma_presence))
+
+g_dat_atdeath <- g_dat_atdeath[(nrow(g_dat_atdeath)-3):nrow(g_dat_atdeath),] %>% 
+  left_join(rest_n, by = "group") %>% 
+    mutate(
+    at_death = ifelse(str_detect(group, "not_rest"), "aroused/stressed", "at rest"),
+    trauma_presence = ifelse(str_detect(group, "trauma_yes"), "yes", "no")
+  )
+  
+g_dat_atdeath %>%
+
+  ggplot(aes(str_replace_all(at_death,"_", " "), g)) +
+
+  geom_hline(yintercept = 0, color = "black") +
+  geom_bar(stat = "identity", colour = "black", fill = "white") +
+  geom_errorbar(aes(ymin = g-sem, ymax = g+sem), width = 0.2) +
+  scale_x_discrete(limits=rev) + 
+  
+  # beautiful
+  my_theme +
+  labs(x="", y = "Hedge's g",
+      title = "Acute status - Males"
+) +
+  facet_grid(~trauma_presence) + 
+  geom_text(aes(label = lab_sig, y = g-sem-0.2)) +
+  geom_text(aes(label = paste("study = ", n_id), y = -2.6)) +
+  geom_text(aes(label = paste("comp = ", n_comp), y = -2.8)) +
+
+  theme(text = element_text(size = 20),
+        axis.text.x = element_text(angle = 45, vjust = 1, hjust=1),
+        legend.position = "none")
+    
+
+```
+
+
+
+### Sensitivity analysis of only naive animals - REMOVE?
+Often experimental animals experience multiple life events, which may interact with ELA. Although in our study the experimental groups always differ only by the presence/absence of ELA, we hypothesise that ELA may interact with other life events to give rise to the observed effects. For this reason, we performed an exploratory analysis considering only publications reporting experiments in naive as well as non-naive male animals at rest.
+
+```{r naive}
+naive_df <- dat_full %>% 
+  filter(sex == "male",
+         at_death == "rest",
+         !outcome %in% turnovers) %>% 
+  mutate(
+    naive = ifelse(behavior == "naive", "yes", "no")
+  ) %>%
+  group_by(outcome, ba_grouped, naive) %>% 
+  count() %>%
+  pivot_wider(names_from = "naive", values_from = "n") %>% 
+  drop_na() %>%
+  mutate(keep = "yes") %>%
+  select(outcome, ba_grouped, keep) %>% 
+  left_join(dat_full %>% filter(sex == "male", at_death == "rest", !outcome %in% turnovers)
+            ) %>% 
+  filter(keep == "yes") %>% 
+  mutate(naive = ifelse(behavior == "naive", "yes", "no"))
+
+
+## final
+mod <- rma.mv(
+  yi, vi, 
+  random = ~ 1|id,
+  method = "REML",
+  data = naive_df,
+  mods = ~ba_grouped:outcome:naive -1,
+  slab = cite
+)
+
+## subgroup
+## Wald test
+## perform two separate MA 
+res1 <- rma(yi, vi, data=naive_df, subset=naive=="yes")
+res2 <- rma.mv(yi, vi, data=naive_df, subset=naive=="no")
+
+# put in same df
+dat.comp <- data.frame(
+  estimate = c(coef(res1), coef(res2)), 
+  stderror = c(res1$se, res2$se),
+  meta = c("naive","not_naive"), 
+  tau2 = round(c(res1$tau2, res2$tau2),3))
+
+# fixed effect model to compare the two 
+res_naive <- rma(estimate, sei=stderror, mods = ~ meta, method="FE", data=dat.comp, digits=3)
+
+```
+
+To this dataset belonged `r n_distinct(naive_df$id)` independent publications reporting `r nrow(naive_df)` comparisons, of which `r naive_df %>% filter(naive == "yes") %>% nrow()` were in naive animals (`r (naive_df %>% filter(naive == "yes") %>% nrow()) / nrow(naive_df) *100`%) . Whether the animal was naive or not was not a significant moderator of the effects (Q~M~(`r res_naive$QMdf[[1]]`) = `r res_naive$QM`, *p* = `r res_naive$QMp`). 
+
+
+## Sex differences
+
+```{r females prep}
+sex_df <- dat_full %>% 
+  filter(at_death == "rest",
+         !outcome %in% turnovers) %>% 
+  group_by(outcome, ba_grouped, sex) %>% 
+  count() %>%
+  pivot_wider(names_from = "sex", values_from = "n") %>% 
+  drop_na() %>%
+  mutate(keep = "yes") %>%
+  select(outcome, ba_grouped, keep) %>% 
+  left_join(dat_full %>% filter(at_death == "rest")
+            ) %>% 
+  filter(keep == "yes")
+
+sex_df <- dat_full %>% 
+  filter(at_death == "rest",
+         !outcome %in% turnovers, 
+         id %in% c(id_both_sex$id), 
+         !unique_id %in% c("monoamines 210"), # male was removed as outlier
+         !exp_id %in% c("16412549_3", "16412549_4") # too many exp in fem
+         )
+```
+
+```{r sex analysis}
+## model
+mod <- rma.mv(
+  yi, vi, 
+  random = ~ 1|id,
+  method = "REML",
+  data = sex_df,
+  mods = ~sex -1,
+  slab = cite
+)
+
+# females publication bias
+sex_mod <- rma(
+  yi, vi, 
+  method = "REML",
+  data = sex_df,
+  slab = exp_id
+)
+reg_sex <- regtest(sex_mod)
+
+## Wald test
+## perform two separate MA 
+res1 <- rma(abs(yi), vi, data=sex_df, subset=sex=="male")
+res2 <- rma.mv(abs(yi), vi, data=sex_df, subset=sex=="female")
+
+# put in same df
+dat.comp <- data.frame(
+  estimate = c(coef(res1), coef(res2)), 
+  stderror = c(res1$se, res2$se),
+  meta = c("male","female"), 
+  tau2 = round(c(res1$tau2, res2$tau2),3))
+
+# fixed effect model to compare the two 
+res_sex <- rma(estimate, sei=stderror, mods = ~ meta, method="FE", data=dat.comp, digits=3)
+
+```
+
+To compare male and female data, I selected only those publications investigating outcomes in males and females, and build a 3-level model with sex of the animals as moderator. In this model, sex was not a significant moderator of the effects of ELA on monoamine-related outcomes (Q~M~(`r mod$QMdf[[1]]`) = `r mod$QM`, *p* = `r mod$QMp`), and males and females were not significantly different from each other (*g*(se) = `r res_sex$b[[2]]`(`r res_sex$se[[2]]`), *p* = `r res_sex$pval[[2]]`). Although we do not observe overall differences between males and females, it cannot be excluded that there are specific outcomes that are sex-dysmorphic.
+
+
+```{r sex var}
+sex_var_df <- escalc(
+  "CVR", 
+  m1i = mean_e, sd1i = sd_e, n1i = n_e,
+  m2i = mean_c, sd2i = sd_c, n2i = n_c, 
+  data = sex_df
+)
+
+mod_var <- rma.mv(
+  yi, vi, 
+  random = ~ 1|exp_id,
+  method = "REML",
+  data = sex_var_df,
+  mods = ~ sex - 1,
+  slab = cite
+)
+
+```
+
+Lastly, we tested whether females are more variable than males. I selected only the outcomes reported in males as well as females. The effect sizes of the variation due to ELA were fairly similar in both males and females (females: *g*(se) = `r mod_var$b[1]`(`r mod_var$se[1]`), *p* = `r mod_var$pval[1]`; males: *g*(se) = `r mod_var$b[2]`(`r mod_var$se[2]`), *p* = `r mod_var$pval[2]`). We then considered variation not in relation to ELA, but as a feature of the control and experimental groups. This approach has limitations because, although males and females came from the same studies, it is unlikely that they were randomized. 
+
+
+```{r sex var both}
+sex_df <- dat_full %>% 
+  filter(at_death == "rest",
+         !outcome %in% turnovers, 
+         id %in% c(id_both_sex$id), 
+         !unique_id %in% c("monoamines 210"), # male was removed as outlier
+         !exp_id %in% c("16412549_3", "16412549_4") # too many exp in fem
+         )
+
+sex_controls <- sex_df %>% 
+  select(id, outcome, ba_grouped, sex, ends_with("_c")) %>%
+  filter(sex == "male") %>% 
+  rename(n_male = n_c, 
+         mean_male = mean_c, 
+         sd_male = sd_c) %>% 
+  select(-sex) %>% 
+  left_join(sex_df %>%
+              select(id, outcome, ba_grouped, sex, ends_with("_c")) %>% 
+              filter(sex == "female") %>% 
+              rename(n_female = n_c, 
+                     mean_female = mean_c, 
+                     sd_female = sd_c) %>% 
+              select(-sex)
+  ) %>% 
+  mutate(group = "control")
+
+sex_ela <- sex_df %>% 
+  select(id, outcome, ba_grouped, sex, ends_with("_e")) %>%
+  filter(sex == "male") %>% 
+  rename(n_male = n_e, 
+         mean_male = mean_e, 
+         sd_male = sd_e) %>% 
+  select(-sex) %>% 
+  left_join(sex_df %>%
+              select(id, outcome, ba_grouped, sex, ends_with("_e")) %>% 
+              filter(sex == "female") %>% 
+              rename(n_female = n_e, 
+                     mean_female = mean_e, 
+                     sd_female = sd_e) %>% 
+              select(-sex)
+  ) %>% 
+  mutate(group = "ela")
+
+sex_controls <- sex_controls %>% 
+  bind_rows(sex_ela)
+
+sex_controls <- escalc(
+  "CVR", 
+  m1i = mean_male, sd1i = sd_male, n1i = n_male,
+  m2i = mean_female, sd2i = sd_female, n2i = n_female, 
+  data = sex_controls
+)
+
+sex_controls <- sex_controls %>% 
+  filter(!is.na(yi)) %>% 
+  data.frame()
+
+mod_sex_controls <- rma(yi, vi, data = sex_controls)
+
+```
+
+We calculated the effect size of the variation between males and females, for both control and experimental groups. There is no evidence that variation is higher in females than in males (*g*(se) = `r mod_sex_controls$b`(`r mod_sex_controls$se`), *p* = `r mod_sex_controls$pval`).
+
+
+## Metaforest
+```{r metaforest, include=FALSE}
+
+dat <- dat_full %>%
+  filter(
+    sex == "male", 
+    !outcome %in% turnovers
+  )
+vars_metaforest <- c("id", "yi", "vi", 
+                     "species", "model", # age_testing_weeks,
+                     "origin", "housing_after_weaning", "behavior",
+                     "outcome", 
+                     #"out_grouped",
+                     "major_life_events", "at_death", "ba_grouped"
+                     )
+# Run model with many trees to check convergence
+dat_df <- dat %>% 
+  select(all_of(vars_metaforest))%>% 
+  mutate(id = as.numeric(as.factor(id)))
+
+# Convergence
+# check_conv <- MetaForest(yi~.,
+#                         data = dat_df,
+#                         study = "id",
+#                         whichweights = "random",
+#                         num.trees = 20000)
+# plot(check_conv)
+
+## model has converged in approx 5000 trees
+# Model with 5000 trees for replication
+mf_rep <- MetaForest(yi~.,
+                        data = dat_df,
+                        study = "id",
+                        whichweights = "random",
+                        num.trees = 5000)
+# Run recursive preselection, store results in object 'preselect'
+preselected <- preselect(mf_rep,
+                         replications = 100,
+                         algorithm = "recursive")
+# Plot the results
+#plot(preselected)
+
+# Retain only moderators with positive variable importance in more than
+# 50% of replications
+retain_mods <- preselect_vars(preselected, cutoff = 0.5)
+
+
+# Set up 10-fold grouped (=clustered) CV
+grouped_cv <- trainControl(method = "cv",
+                           index = groupKFold(dat_df$id, k = 10))
+
+# Set up a tuning grid for the three tuning parameters of MetaForest
+tuning_grid <- expand.grid(whichweights = c("random", "fixed", "unif"),
+                       mtry = 2, #2:6,
+                       min.node.size = 2:6)
+
+# X should contain only retained moderators, clustering variable, and vi
+X <- dat_df[, c("id", "vi", retain_mods)]
+
+# Train the model
+mf_cv <- train(y = dat_df$yi,
+               x = X,
+               study = "id", # Name of the clustering variable
+               method = ModelInfo_mf(),
+               trControl = grouped_cv,
+               tuneGrid = tuning_grid,
+               num.trees = 5000)
+# Examine optimal tuning parameters
+rcv <- mf_cv$results[which.min(mf_cv$results$RMSE), ]
+
+
+# For convenience, extract final model
+final <- mf_cv$finalModel
+# Extract R^2_{oob} from the final model
+r2_oob <- final$forest$r.squared
+
+# Plot variable importance
+varimp <- VarImpPlot(final)
+
+```
+
+Of the investigated variables, only `r length(retain_mods)` were selected in more than 50% of the bootstraps, namely `r paste(str_replace_all(retain_mods, "_", " "), collapse = ", ")`. Figure a below shows the variable importance plot. Figure b below shows the variable importance before variable selection. 
+
+```{r metaforest graphs, fig.width=10, fig.height=12}
+ggpubr::ggarrange(
+  varimp,
+  plot(preselected), 
+  labels = c("a", "b"),
+  nrow = 2, heights = c(1,2)
+)
+```
+
+# Bias
+Risk of bias assessment .... *still to do*
+
+Due to software unavailability, publication bias was assessed on the univariate models without moderators. Only the life experiences' model had evidence of publications bias (*z* = `r reg_rest$zval`, *p* = `r reg_rest$pval`), while the males' and sex differences' models did not (males: *z* = `r reg_males$zval`, *p* = `r reg_males$pval`; sex differences: *z* = `r reg_sex$zval`, *p* = `r reg_sex$pval`).
+
+```{r funnels, echo=FALSE}
+par(mfrow=c(2,2))
+  funnel(males_mod) 
+  title("a) Males", adj = 0)
+  funnel(sex_mod)
+  title("b) Sex differences", adj = 0)
+  funnel(rest_mod)
+  title("c) Life experiences", adj = 0)
+  mtext(expression(italic("Figure X.")), side = 3, line = -2, outer = TRUE, adj = 0)
+par(mfrow=c(1,1))
+```
+
+
+
+# Methods
+This review adhere's to SYRCLE's guidelines for protocol (De Vries 2015), search strategy (Leenaars et al., 2012), and risk of bias assessment (Hooijmans et al., 2014). Reporting is in accordance to the PRISMA reporting checklist (Moher et al., 2009, **Supplementary Table 1** TO DO). The analytic strategy is based on earlier work of our own lab (cite dopamine, behavior, ieg meta-analyses). Materials, data, scripts used for this project are available via the open science framework (*link*, TO DO)
+
+## Search strategy and data gathering
+The search strategy of this study was conducted in parallel to other studies of our own lab (cite IEG, cite structure paper). Briefly, on April 3^rd^ 2019, we conducted a systematic literature search on the electronic databases PubMed and WebOfScience, which included the terms 'mice and rats' and 'postnatal ELA' (**Supplementary note 1**). ELA was defined as postnatal models that are based on an alteration of maternal care, either naturally varying (i.e., licking and grooming (REF)) or experimentally induced in (at least) the first two postnatal weeks (i.e., maternal deprivation and separation, isolation, limited nesting and bedding (ADD REFS)). Study selection was performed in two stages. In the first stage, titles and abstracts were excluded if: 1) were not a primary publication, 2) were not conducted in mice or rats, 3) did not concern early life adversity. This stage of study selection was performed in Rayyan by at least three (out of 5)  researchers. The order of study selection differed between researchers. During the second stage, full text was screened and studies were included if: 1) outcomes related to monoamines (**Supplementary Table 2, prespecified** *TO DO*), 2) the outcomes were measured in adulthood (older than week 8 but younger than 1 year), 3) the animals did not experience other pharmachological/dietary/genetic interventions, 4) the sex of animals was known (after contacting authors). The second step of study selection was performed by two researchers (VB and EK), and disagreements were resolved by discussion. An overview of the study procedure is deligned in *Figure 1* (TO DO).
+
+From the eligible studies, we selected only experiments where control and ELA groups differed only in the experience of ELA. All other variables were constant between the control and ELA groups. Each individual comparison between a control and an experimental group was organized in a standardized database. This summarizes information about 1) the publications (author, year, reference), 2) the experimental design (e.g. species, sex, model, other life events, age of the animals at the time of testing), 3) information about the outcome extracted (e.g. brain area, technique used), and 4) summary statistics of the data measured (e.g. sample size, mean, and deviation (SEM or SD)). Data that was reported exclusively in graphs was digitalized with Web Plot Digitalizer (ref). For all remaining missing information, we contacted the corresponding author of each manuscript (response rate XX). 
+
+Experimental designs are heterogeneous; therefore, we organized elements of the experimental design to ease interpretation. The categorization of brain areas are reported in **Supplementary Table 3**, and the categorization of life experiences is summarized in **Supplementary Table 4**. If a study reported multiple sub-brain areas within one of our categorizations, these were combined for the quantitative synthesis to limit heterogeneity and avoid biasing paper-specific. Similarly, if a study reported multiple outcomes, these were combined into one measure, for example dopamine receptor 1 and 3 were combined into dopamine-receptors 1-like. The aggregation occurred at the level of effect sizes, with the function *aggregate* (rho = 0.6) from the R package *metafor* (REF).
+
+
+The database is available on the open science framework (*link*, TO DO).
+
+## Data synthesis and statistical analysis
+Effect sizes for each individual comparison (i.e. the difference between control and ELA on each specific outcome) were calculated with *escalc* (R package *metafor*, REF) as standardized mean difference with Hedge's g (*g*) method, which includes a correction factor for small sample sizes (Vesterinen et al., 2014). To use escalc, we harmonized the reported measures of variation and of sample size. If only SEM was reported, SD was calculated as SEM * n , where n = amount of animals per group. If the number of animals used was reported as a range (e.g. 6–8 animals per group), we used the lower boundary (e.g. 6 animals per group).
+
+For the main analysis, we used a 3-level mixed effect model which accounts for the anticipated heterogeneity of the studies as well as the dependency of effects within experiments. In our experimental design, the 3 levels corresponded to variance of effect size between 1) animals, 2) outcomes and 3) publications. The outcomes relevant to the monoamines' systems are numerous. Prior to the beginning of the study it was not possible to estimate which of the outcomes were sufficiently explored in the literature to further focus on. We therefore decided to analyze all outcomes investigated by at least 3 independent publications, and to lower the significance threshold to 0.01 rather than correcting for multiple testing. Of note, ultimately this choice was more conservative than applying the standard Holm correction for multiple testing.
+
+We expected the following elements of the experimental design to be important moderators: 1) brain area investigated, 2) sex of the animals, and 3) other life events, which were categorized as 3a) acute status of the animal at death, and 3b) other traumatic life experiences. While brain area investigated was included in the main model as a potential moderator, we analyzed males and females separately as we consider them two separate biological systems (see **Section X**). Since the interactions of outcomes-by-brain area-by-life events would scatter the publications across small groups, these factors could not be included as moderators in the analyses. Of note, this decision was taken once the frequency of outcomes in the various subgroups was known. Therefore, we selected for the main analysis only animals at rest and not under acute/stressful circumstances. We filtered the data on acute status of the animal rather than on experience of other traumatic events because we expected that the acute status may have effects in opposite directions than at rest, whereas we did not expect the same interaction for animals that did and did not experience other traumatic life events. Nonetheless, we explored life events in a second analysis (see **Section X**).
+
+## Life experiences analysis
+To test the potential moderatory effect of life experiences (i.e., status of the animals at death, and experience of other traumatic life events), we performed a second analysis on our data. For this analysis, we included only those publications reporting experiments both at rest and in stressed/aroused status, or that tested both the presence/absence of other traumatic life events. This choice was to limit as much as possible study-related confounding effects. Of note, the dataset used is partially the same as the dataset used for the main analysis. With this balanced dataset, we built a 3-level mixed effect meta-analysis similar to the main analysis, but where the interaction between status of the animals at death and experience of other traumatic life events was included as moderators. Although brain areas and outcomes were used as covariates, we tested only the main effects (i.e., aroused/stress vs rest and no trauma vs trauma) and the resulting 4 groups of the interaction (i.e. rest with no traumatic events, rest with traumatic events, aroused/stress with no traumatic events and lastly aroused/stressed with traumatic events) against 0.
+
+## Sensitivity analysis naive animals
+To test the potential moderatory effect of life experiences (i.e., status of the animals at death, and experience of other traumatic life events), we performed a second analysis on our data. For this analysis, we included only those publications reporting experiments both at rest and in stressed/aroused status, or that tested both the presence/absence of other traumatic life events. This choice was to limit as much as possible study-related confounding effects. Of note, the dataset used is partially the same as the dataset used for the main analysis. With this balanced dataset, we built a 3-level mixed effect meta-analysis similar to the main analysis, but where the interaction between status of the animals at death and experience of other traumatic life events was included as moderators. Although brain areas and outcomes were used as covariates, we tested only the main effects (i.e., aroused/stress vs rest and no trauma vs trauma) and the resulting 4 groups of the interaction (i.e. rest with no traumatic events, rest with traumatic events, aroused/stress with no traumatic events and lastly aroused/stressed with traumatic events) against 0.
+
+## Sex differences
+The effects of stress on the brain are often sexually dysmorphic, meaning that they can differ between sexes. For this reason, we planned to analyze males and females separately. Although the number of female studies has increased in recent years, the evidence is not yet sufficient for a quantitative analysis. We aimed nonetheless to explore evidence in favour/against sex differences in relation to the effects of early life adversity of monoamines' outcomes. We performed two different types of analyses. We selected only those publications with experiments performed in males as well as females. In the first analysis, with a 3-level mixed effect model, we tested whether sex was a significant moderator of the effects. Since we performed this analysis only on a limited number of publications, we considered as "relevant" the moderator if the p value of the moderator test was lower the threshold of 0.10. Next, we conducted a subgroup analysis to test whether males and females were different from each other. We built two identical models, one for males and one for females, and with a Wald test we tested whether they differed. In this analysis, we considered the absolute of the effect sizes, so that we effectively tested whether the strength of the effects differed between males and females. 
+
+In the second analysis, we tested whether the variability, rather than the strength of the effects, was different in males/females that experienced (or not) early life adversity. We calculated the effect size (log transformed coefficient of variation ratio) of the variability between control and ELA animals, for males and females separately. We then performed a meta-analysis on the variability, and tested whether sex was a significant moderator of the effects. This approach has limitations because, although males and females came from the same studies, it is unlikely that they were randomized. 
+
+
+
+## Heterogeneity
+Heterogeneity was tested with Cochran Q-test (Moreira et al., 2016) and I^2^ statistics (Cheung, 2014). A significant test of heterogeneity means that there is still unexplained variance in the data, despite the used moderators. We therefore performed a machine-learning-based exploratory approach to identify potential moderators using *MetaForest* (van Lissa, 2020). Metaforest applies random forests to meta-analysis data by means of bootstrap sampling, thereby ranking moderators based on their (non)linear influence on the effect size. Of the variables classifying the experimental design, we selected X for metaforest analysis. After identifying a convergence range, we conducted a recursive preselection based on 100 replications, and selected only those moderators that were selected in at least 50% of the replications. With these variables, we built our MetaForest model and conducted a 10x cross validation to determine the optimal tuning parameters that minimized RMSE (`r rcv$whichweights` weights, `r rcv$mtry` candidate moderators at each split, minimum node size =`r rcv$min.node.size`). To estimate how much variance is explained by our model, we calculated the cross-validated R^2^ (R~cv~^2^), which is robust to overfitting and provides evidence for the results’ generalizability. 
+
+
+## Bias assessment
+To assess risk of bias, we followed SYRCLE's risk of bias guidelines (*still to do*, Hooijmans et al., 2014). Publication bias was assessed by qualitative inspection of funnel plot asymmetry and quantification with Egger's regression (Egger et al., 1997). To the best of our knowledge no quantitative method is available for the inspection of publication bias for a multi-level setting. Despite this limitation, we performed a Trim and Fill analysis (Duval and Tweedie, 2000) on a univariate model without moderators for each of the functional outcomes (morphology, neurogenesis and bdnf). 
+
+
+## Software
+The analyses were conducted in R (version 3.5.1) (R Core Team, 2015), using the following packages: 1) metafor (Viechtbauer, 2010) for con- ducting the analysis, 2) metaforest (van Lissa, 2018b) for data ex- ploration, 3) shiny (Chang et al., 2017) to create MaBapp, and 4) dplyr (Wickham et al., 2018) for general data handling. For further specifi- cations about the analysis, the R script and the data are available (*link*).
+
+
+
+# Supplementary Tables
+## Supplementary table 1 - PRISMA
+
+## Supplementary Table 2 - outcomes
+The following outcomes related to monoamines were specified prior the beginning of the study to be included in the study: 
+
+*Dopamine-related*
+
+ - Dopamine
+ - Precursors (tyrosine, L-DOPA, not available)
+ - Metabolites (DOPAC, HVA, 3-MT)
+ - Transporter (DAT) and receptors (DRD1, DRD2, DRD3, DRD4, DRD5, only partially available)
+ - Enzymes (MAO, COMT, DBH, AAAD, only partially available)
+
+
+*Serotonin related*
+
+ - Serotonin (5-HT)
+ - Precursors (L-tryptophan, 5-HTP, not available)
+ - Metabolites (5-HIAA)
+ - Transporters (SERT, PMAT) and receptors (5-HT1, 5-HT2, 5-HT3, 5-HT4, 5-HT5, 5-HT6, 5-HT7)
+ - Enzymes (TPH, MAO, AAADC, only partially available)
+ 
+
+*Noradrenaline related*
+
+ - Norepinephrine
+ - Metabolites (norepinephrine aldehyde, MHPG, VMA, NMN, only partially available)
+ - Transporter (NET) and receptors (alpha_1, alpha_2, beta_1, beta_2, beta_3, only partially available)
+ - Enzymes (DBH, COMT, MAO, ADH, only partially available)
+
+
+## Supplementary Table 3 - brain areas
+We categorized brain areas in 8 main groups, according to the Allen Brain Atlas (REF) embryological classification: 
+
+- *brainstem and midbrain*, which includes gray, medulla, pons, raphe, midbrain and colliculus
+- *prefrontal cortex*, 
+- *hippocampus*, which includes all areas of the hippocampus and dentate gyrus
+- *striatum and pallidum*, which includes striatal areas, nucleus accumbens, pallidum, cadate putamen, substantial nigra and vta
+- *hypothalamic nuclei*, which includes full hypothalamus, as well as mammilary body, syprachiasmatic body, zona incerta, and optic area
+- *amygdala*,
+- *thalamic nuclei*, which includes thalamus and abenula
+- *other areas*, which includes the ventricals, edinger westphal nucleus, internal capsure and endopiriform cortex
+      
+
+## Supplementary Table 4 - Life experiences
+### Traumatic life events
+Experimental designs were grouped based on the animals' life experiences. We considered as potentially additional traumatic experience: 
+
+1) purchasing pregnant dams (transport stress);
+2) prolonged single housing; 
+3) stressful behavior tests (i.e., behavior paradigms with footshocks, morris water maze (water temperature < XC), social defeat, forced swim test); 
+4) anaesthesia (for mock surgeries), microdialysis, blood sampling;
+5) (chronic) restraint/immobilization stress, chronic footshock, fox odor, chronic mild/unpredictable stress and combinations
+
+Points 2/5 were categorized together in one variable, which defined the presence / absence of other major (chronic) life events. 
+
+Furthermore, we categorized the experimental designs included prior to decapitation (<6h) to define potential (acute) effects. The animals could have been killed at rest, in an aroused (i.e. after injection, novel environment, fasting, single housing, elevated plus maze or other non-stressful behavioral experiments) or a stressed (i.e., after footshock, restraint/immobilization, forced swim test, morris water maze, probe implantation, social defeat, resident intruder) state. 
+
+### Status of the animal at death
+We categorized the status at the animal at death as: 
+1) at rest - if the animals were taken from the home cage and not handled in (at least) the previous 12 hours
+2) stressed - if the animals experienced a stressful experience (e.g. restraint, Morris Water Maze, footshock) in the 4 hours prior to sacrifice
+3) aroused - if the animals could not be categorized as rest / stressed. To this group mainly belonged animals that experience elevated plus maze, open fields, novel environments or saline injections prior to sacrifice. 
+
+Due to frequency of experiments in the various categories, aroused/stressed were merged in only one category.
 
