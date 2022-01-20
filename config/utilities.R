@@ -29,6 +29,7 @@ my_theme <- theme_classic() +
         panel.grid.minor = element_line(colour = "grey95"),
         plot.margin = unit(c(0.5,0.5,0.5,0.5), "cm")) 
 
+my_hist <- geom_histogram(stat="count", color = "black")
 
 std_fill <- scale_fill_viridis(discrete = TRUE)
 my_bin <- 50
