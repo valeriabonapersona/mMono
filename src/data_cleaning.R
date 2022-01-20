@@ -180,10 +180,11 @@ mono <- dat_xl$out_monoamines %>%
     ),
   
     ba_grouped = case_when(
-      str_detect(brain_area_publication, "striatum|nucleus_accumb|pallid|caud") ~ "striatum_and_pallidum",
-      str_detect(brain_area_publication, "nucleus_accumb") ~ "nucleus_accumbens",
-      str_detect(brain_area_publication, "caud") ~ "caudate_putamen",
-
+      str_detect(brain_area_publication, "tegment") ~ "vta",
+      str_detect(brain_area_publication, "striatum|nucleus_accumb|pallid|caud") ~ "striatum",
+      
+      str_detect(brain_area_publication, "raphe|midbrain|colliculus|gray|substant|raphe") ~ "midbrain",
+      str_detect(brain_area_publication, "medulla|pons|brainstem") ~ "brainstem_and_hindbrain",
 
       str_detect(brain_area_publication, "hippocamp|dentate|GZ") ~ "hippocampus",
       str_detect(brain_area_publication, "amygda") ~ "amygdala", 
@@ -192,7 +193,7 @@ mono <- dat_xl$out_monoamines %>%
       
       
       str_detect(brain_area_publication, "thalam|habenula") ~ "thalamic_nuclei",
-      str_detect(brain_area_publication, "gray|raphe|midbrain|medulla|pons|brainstem|colliculus|substant|tegmental") ~ "brainstem_and_midbrain",
+      str_detect(brain_area_publication, "medulla|pons|brainstem") ~ "brainstem_and_hindbrain",
       
    #   str_detect(brain_area_publication, "olfact") ~ "olfactory_areas",
 
@@ -349,15 +350,15 @@ mono <- dat_xl$out_monoamines %>%
       str_detect(brain_area_publication, "tegment") ~ "vta",
       
       
-      str_detect(brain_area_publication, "hippocamp|dentate|GZ") ~ "hippocampus",
+      str_detect(brain_area_publication, "hippocamp|dentate|GZ") ~ "hippocampal_areas",
       str_detect(brain_area_publication, "amygda") ~ "amygdala", 
       str_detect(brain_area_publication, "frontal") ~ "prefrontal_cortex",
       str_detect(brain_area_publication, "hypothal|mammilary|suprachiasmatic|incerta|optic") ~ "hypothalamic_nuclei",
       
       
       str_detect(brain_area_publication, "thalam|habenula") ~ "thalamic_nuclei",
-      str_detect(brain_area_publication, "raphe|midbrain|colliculus") ~ "midbrain",
-      str_detect(brain_area_publication, "gray|medulla|ponsbrainstem|") ~ "brainstem_and_hindbrain",
+      str_detect(brain_area_publication, "raphe|midbrain|colliculus|gray") ~ "midbrain",
+      str_detect(brain_area_publication, "medulla|pons|brainstem") ~ "brainstem_and_hindbrain",
       
       str_detect(brain_area_publication, "olfact") ~ "olfactory_areas",
       
