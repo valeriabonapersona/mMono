@@ -4,3 +4,14 @@
 .Ruserdata
 .DS_Store
 .Rproj
+
+bin/*
+
+*.csv
+*.RDS
+*.png
+docs/manuscript/*
+
+results/*.csv
+data/processed/*
+data/temp/*
