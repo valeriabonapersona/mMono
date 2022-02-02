@@ -184,7 +184,7 @@ mono <- dat_xl$out_monoamines %>%
       str_detect(brain_area_publication, "striatum|nucleus_accumb|pallid|caud") ~ "striatum",
       
       str_detect(brain_area_publication, "raphe|midbrain|colliculus|gray|substant|raphe") ~ "midbrain",
-      str_detect(brain_area_publication, "medulla|pons|brainstem") ~ "brainstem_and_hindbrain",
+      str_detect(brain_area_publication, "medulla|pons|brainstem") ~ "brainstem",
 
       str_detect(brain_area_publication, "hippocamp|dentate|GZ") ~ "hippocampus",
       str_detect(brain_area_publication, "amygda") ~ "amygdala", 
@@ -193,7 +193,7 @@ mono <- dat_xl$out_monoamines %>%
       
       
       str_detect(brain_area_publication, "thalam|habenula") ~ "thalamic_nuclei",
-      str_detect(brain_area_publication, "medulla|pons|brainstem") ~ "brainstem_and_hindbrain",
+      str_detect(brain_area_publication, "medulla|pons|brainstem") ~ "brainstem",
       
    #   str_detect(brain_area_publication, "olfact") ~ "olfactory_areas",
 
@@ -358,7 +358,7 @@ mono <- dat_xl$out_monoamines %>%
       
       str_detect(brain_area_publication, "thalam|habenula") ~ "thalamic_nuclei",
       str_detect(brain_area_publication, "raphe|midbrain|colliculus|gray") ~ "midbrain",
-      str_detect(brain_area_publication, "medulla|pons|brainstem") ~ "brainstem_and_hindbrain",
+      str_detect(brain_area_publication, "medulla|pons|brainstem") ~ "brainstem",
       
       str_detect(brain_area_publication, "olfact") ~ "olfactory_areas",
       
