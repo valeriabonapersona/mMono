@@ -58,6 +58,7 @@ g_males_ba_out
 
 ggsave("figs/unedited/fig_3.svg", width = 13, height = 10)
 
+
 # outcomes by brain areas
 source("src/figures/fig_outcomebrainareas.R")
 g_out_ba
@@ -84,8 +85,10 @@ ggsave("figs/unedited/fig_2.svg", width = 10, height = 10)
 
 # Main results ------------------------------------------------------------
 
-source("src/figures/fig_males_main.R")
+# full figures for supplementary
+source("src/figures/fig_males_main_suppl.R")
 source("src/orders.R")
+
 fig_mono[[1]]
 ggsave("figs/unedited/fig_da_main.svg", width = 12, height = 10)
 fig_mono[[2]]
@@ -95,6 +98,22 @@ ggsave("figs/unedited/fig_ne_main.svg", width = 12, height = 5)
 fig_mono[[3]]
 ggsave("figs/unedited/fig_enzymes_main.svg", width = 12, height = 7)
 
+
+# main results for paper main text
+source("src/figures/fig_males_main_res.R")
+source("src/orders.R")
+
+
+
+ggpubr::ggarrange(
+  fig_mono_main[[2]], fig_mono_main[[1]],
+  fig_mono_main[[3]], fig_mono_main[[4]], 
+  nrow = 2, ncol = 2, heights = c(2.5, 1), 
+  labels = c("A", "B", "C", "D")
+  
+)
+
+ggsave("figs/unedited/fig_4.svg", width = 17, height = 9)
 
 # Figure 9 ----------------------------------------------------------------
 source("src/figures/fig_life_subgroup.R")
