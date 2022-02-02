@@ -33,7 +33,6 @@ mod <- rma.mv(
   
 #  random = list(~1 | unique_id, ~1 | exp_id),
   method = "REML",
-  #  data = actual_df,
   data = dat_males,
   mods = ~ ba_grouped:outcome -1,
   slab = cite
@@ -67,6 +66,22 @@ males_mod <- data.frame(
               select(ba_grouped, out_mono, outcome, n_id, n_unique_id), 
             by = c("outcome", "ba_grouped", "out_mono"))
 
+
+males_mod_table <- males_mod %>% 
+  mutate(inter = str_remove_all(inter, "ba_grouped") %>% 
+           str_remove_all("outcome")) %>%
+  separate(inter, into = c("brain_area", "outcome"), sep = "\\.") %>% 
+  select(-brain_area) %>%
+  mutate(
+    outcome = str_replace_all(outcome, "_", " "), 
+    ba_grouped = str_replace_all(ba_grouped, "_", " "),
+    g = round(g, 2), 
+    sem = round(sem, 3), 
+  ) %>% 
+  rename(se = sem) %>%
+  arrange(out_mono, outcome, ba_grouped)
+
+write.csv(males_mod_table, "results/main_res_table.csv")
 
 # Against 0 ---------------------------------------------------------------
 ## comparisons with sufficient publications (id > 2)
