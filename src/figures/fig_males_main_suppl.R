@@ -12,9 +12,12 @@
 source("src/analysis_males.R")
 
 # Visualization -----------------------------------------------------------
-
-
 fig_mono <- list()
+my_titles <- data.frame(
+  title = c("Dopamine system", "Serotonin system", 
+            "Noradrenaline system", "Monoaminergic enzymes"), 
+  out_mono = c("da_related", "ser_related", "ne_related", "enzymes")
+)
 for(i in unique(males_mod$out_mono)) {
   print(i)
   
@@ -36,9 +39,12 @@ for(i in unique(males_mod$out_mono)) {
     labs(x="", y = "Hedge's g") +
     scale_color_manual(values = c("black", "grey75")) + 
     
-    facet_grid(str_replace_all(outcome, "_", " \n")~., scales = "free_y",
+    facet_grid(factor(outcome, levels = rev(order_all_out)) ~., scales = "free_y",
                switch = "both") +
-    labs(x = "Brain areas", y = "g(se)", title = str_replace_all(i, "_", " ")) +
+    # 
+    # facet_grid(str_replace_all(outcome, "_", " \n")~., scales = "free_y",
+    #            switch = "both") +
+    labs(x = "Brain areas", y = "g(se)", title = my_titles[my_titles$out_mono == i,]$title) +
      geom_text(aes(label = lab_sig, y = 0.1)) + 
     theme(text = element_text(size = 20),
           legend.position = "none") + 
@@ -49,8 +55,5 @@ for(i in unique(males_mod$out_mono)) {
   
 }
 
-fig_mono[[1]]      
-fig_mono[[2]]
-fig_mono[[3]]
-fig_mono[[4]]
+
 
