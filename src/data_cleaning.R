@@ -117,7 +117,9 @@ mono <- dat_xl$out_monoamines %>%
       str_replace_all("serotonin", "5HT") %>% 
       str_replace_all("_5HT", "/5HT") %>% 
       str_replace_all("_R", "R"), 
-    outcome = ifelse(outcome %in% c("D1R", "D3R"), "D1Rlike", outcome),
+    outcome = ifelse(outcome %in% c("D2R", "DR2", "D3R"), "D2R_like", outcome),
+    outcome = ifelse(outcome %in% c("D1R", "D5R"), "D1R_like", outcome),
+    outcome = ifelse(outcome == "TPH", "TPH2", outcome),
     product_measured = tolower(product_measured) %>%
       str_replace_all("mrna", "rna") %>% 
       str_replace_all("signal_", "") %>% 
@@ -157,7 +159,6 @@ mono <- dat_xl$out_monoamines %>%
       T ~ brain_area_hemisphere
     ),
     
-    outcome = ifelse(outcome=="DR2", "D2R", outcome),
     outcome = str_replace_all(outcome, "5HIIA", "5HIAA"),
       
     out_grouped = case_when(
@@ -165,14 +166,14 @@ mono <- dat_xl$out_monoamines %>%
       outcome %in% c("5HIAA/5HT", "VMA", "VMA/NE", "MHPG", "DOPAC", "DOPAC/DA", "HVA",
                      "5HIAA", "3MT", "HVA/DA", "DOPAC_HVA/DA") ~ "metabolites_and_precursors", 
       outcome %in% c("TH", "COMT", "TPH", "TPH2", "MAO_A") ~ "enzymes", 
-      outcome %in% c("5HT_2AR", "5HT_2CR", "D1R", "D2R", "DAT", "5HT_1AR", "SERT", "D3R", 
+      outcome %in% c("5HT_2AR", "5HT_2CR", "D1R_like", "D2R_like", "DAT", "5HT_1AR", "SERT", "D3R", 
                      "5HT_6R") ~ "receptors_and_transporters", 
       T ~ outcome
     ),
     
     out_mono = case_when(
       outcome %in% c("DA", "DOPAC", "DOPAC/DA", "HVA", "HVA/DA", "DOPAC_HVA/DA", "3MT",
-                     "D1Rlike", "D2R", "DAT") ~ "da_related", 
+                     "D1R_like", "D2R_like", "DAT") ~ "da_related", 
       outcome %in% c("5HT", "5HIAA", "5HIAA/5HT",
                      "5HT_2AR", "5HT_2CR", "5HT_1AR", "SERT", "5HT_6R") ~ "ser_related", 
       outcome %in% c("NE", "VMA", "VMA/NE", "MHPG") ~ "ne_related", 
