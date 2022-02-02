@@ -24,7 +24,9 @@ g_males_ba_out <- dat_males %>%
   group_by(out_mono, ba_grouped, outcome) %>% 
   summarize(n_id = length(unique(id)), .groups = "drop") %>%
   ggplot(aes(ba_grouped, 
-             outcome, fill = n_id)) + 
+           #  outcome,
+             factor(outcome, levels = rev(str_replace_all(order_all_out, "_", " "))), 
+                    fill = n_id)) + 
   geom_tile() + 
   facet_wrap(~ factor(out_mono, levels = order_out_mono), scales = "free") + 
   my_theme + 
